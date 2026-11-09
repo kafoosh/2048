@@ -3,8 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#e8ecf0" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16120f" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Photo 2048">
@@ -14,58 +12,35 @@
 <!-- page -->
 <title>Photo 2048</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;600&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: one column. Scoreboard, slide-tray board, then the film-strip "roll" of photos.
-   A photographer's lightbox in light mode, a darkroom in dark mode; red grease pencil marks selections. */
 :root {
-  --bg: #e8ecf0;
-  --surface: #f6f8fa;
-  --tray: #c6cfd8;
-  --cell: #d9e0e7;
-  --line: #aeb9c5;
-  --ink: #17202b;
-  --muted: #536071;
-  --accent: #cf3326;
-  --on-accent: #ffffff;
-  --mount: #fdfdfb;
-  --shadow: rgba(23, 32, 43, 0.22);
-  --veil: rgba(232, 236, 240, 0.86);
-  --film: #26201c;
-  --sprocket: #eef2f6;
-  --edge: #e8a547;
-  --badge-bg: rgba(12, 14, 18, 0.66);
-  --badge-fg: #ffffff;
-
-  --display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
-  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-
+  --bg: #faf8f5;
+  --fg: #2b2a28;
+  --muted: #77736d;
+  --board: #bbada0;
+  --cell: #cdc1b4;
+  --slot: #eee7de;
+  --veil: rgba(250, 248, 245, 0.8);
+  --btn: #2b2a28;
+  --btn-fg: #ffffff;
   --gap: 10px;
-  --radius: 14px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #16120f; --surface: #201a16; --tray: #2e2622; --cell: #3a302b; --line: #54473f;
-    --ink: #f2e9df; --muted: #ad9d8f; --accent: #ff6a55; --on-accent: #1a0f0c;
-    --mount: #efe7dc; --shadow: rgba(0, 0, 0, 0.55); --veil: rgba(22, 18, 15, 0.86);
-    --film: #0b0908; --sprocket: #3b322c; --edge: #e8a547;
+    --bg: #1c1b1a; --fg: #eeeae4; --muted: #a29d96; --board: #4a443e; --cell: #5c554e;
+    --slot: #2c2a28; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #16120f; --surface: #201a16; --tray: #2e2622; --cell: #3a302b; --line: #54473f;
-  --ink: #f2e9df; --muted: #ad9d8f; --accent: #ff6a55; --on-accent: #1a0f0c;
-  --mount: #efe7dc; --shadow: rgba(0, 0, 0, 0.55); --veil: rgba(22, 18, 15, 0.86);
-  --film: #0b0908; --sprocket: #3b322c; --edge: #e8a547;
+  --bg: #1c1b1a; --fg: #eeeae4; --muted: #a29d96; --board: #4a443e; --cell: #5c554e;
+  --slot: #2c2a28; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
   color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+html { touch-action: manipulation; }
 :root {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -73,103 +48,50 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--ink);
-  font: 15px/1.5 var(--body);
+  color: var(--fg);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overscroll-behavior: none;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   -webkit-tap-highlight-color: transparent;
 }
-button, input { font: inherit; }
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.visually-hidden {
-  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
-  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; padding: 0; margin: -1px;
-}
-
-.app {
-  max-width: 480px;
+main {
+  max-width: 460px;
   margin: 0 auto;
-  padding-block: 14px 32px;
+  padding-block: 16px 32px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-/* Header */
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-h1 {
-  margin: 0;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: clamp(30px, 9vw, 42px);
-  line-height: 0.95;
-  letter-spacing: -0.035em;
-}
-h1 .num { color: var(--accent); }
-.scores { display: flex; gap: 6px; flex-shrink: 0; }
-.score {
-  position: relative;
-  background: var(--tray);
-  border-radius: 10px;
-  padding: 6px 10px 7px;
-  min-width: 68px;
-  text-align: center;
-}
-.score .label {
-  display: block;
-  font: 700 10px/1.2 var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--muted);
-}
-.score .value {
-  display: block;
-  font: 800 20px/1.15 var(--display);
-  font-variant-numeric: tabular-nums;
-}
-.score-add {
-  position: absolute; left: 0; right: 0; top: 2px;
-  font: 700 14px/1 var(--mono);
-  color: var(--accent);
-  pointer-events: none;
-  animation: rise 700ms ease-out forwards;
-}
-@keyframes rise { to { transform: translateY(-26px); opacity: 0; } }
-
-/* Buttons */
-.controls { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn {
-  appearance: none;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 42px; padding: 0 14px;
-  font: 600 14px/1 var(--body);
-  color: var(--ink);
-  background: transparent;
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
+header { display: flex; align-items: center; gap: 12px; }
+h1 { margin: 0 auto 0 0; font-size: 26px; font-weight: 800; white-space: nowrap; }
+.score { font-size: 15px; color: var(--muted); white-space: nowrap; }
+.score b { color: var(--fg); font-variant-numeric: tabular-nums; }
+button {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--btn);
+  color: var(--btn-fg);
   cursor: pointer;
   white-space: nowrap;
 }
-.btn:hover:not(:disabled) { border-color: var(--ink); }
-.btn:disabled { opacity: 0.4; cursor: default; }
-.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.btn.accent { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.btn.accent:hover:not(:disabled) { border-color: var(--accent); filter: brightness(1.06); }
-.btn.armed { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.controls .accent { margin-left: auto; }
-.btn.small { height: 36px; padding: 0 11px; font-size: 13px; }
+button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
+.file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
-/* Board */
 .board {
   position: relative;
   width: 100%;
-  width: min(100%, max(260px, calc(100dvh - 250px)));
-  max-width: 100%;
+  width: min(100%, max(260px, calc(100dvh - 200px)));
   aspect-ratio: 1;
   margin-inline: auto;
-  background: var(--tray);
-  border-radius: var(--radius);
+  background: var(--board);
+  border-radius: 10px;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -180,240 +102,98 @@ h1 .num { color: var(--accent); }
   padding: var(--gap);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(4, 1fr);
   gap: var(--gap);
 }
-.cells span { background: var(--cell); border-radius: 8px; }
-.tiles { position: absolute; inset: 0; }
+.cells span { background: var(--cell); border-radius: 6px; }
 .tile {
   position: absolute;
+  z-index: 1;
   left: var(--gap); top: var(--gap);
   width: calc((100% - 5 * var(--gap)) / 4);
   height: calc((100% - 5 * var(--gap)) / 4);
   transform: translate(calc(var(--c) * (100% + var(--gap))), calc(var(--r) * (100% + var(--gap))));
-  transition: transform 110ms ease-out;
-  z-index: 2;
+  transition: transform 100ms ease-out;
 }
-.tile.leaving { z-index: 1; }
-.tile.pop { z-index: 3; }
-.tile-inner {
-  position: relative;
-  width: 100%; height: 100%;
-  padding: 3px;
-  background: var(--mount);
-  border-radius: 8px;
-  box-shadow: 0 3px 8px var(--shadow);
-}
-.photo {
+.tile.gone { z-index: 0; }
+.tile-face {
   width: 100%; height: 100%;
   display: grid; place-items: center;
-  border-radius: 5px;
-  background: var(--cell) center / cover no-repeat;
-  overflow: hidden;
-}
-.badge {
-  position: absolute; left: 7px; bottom: 7px;
-  padding: 3px 5px;
-  font: 700 10px/1 var(--mono);
-  letter-spacing: 0.03em;
-  font-variant-numeric: tabular-nums;
-  color: var(--badge-fg);
-  background: var(--badge-bg);
-  border-radius: 4px;
-}
-.hide-numbers .badge { display: none; }
-.tile.plain .tile-inner { background: var(--tile-bg); }
-.tile.plain .photo {
-  background: var(--tile-bg);
-  color: #ffffff;
-  font: 800 clamp(15px, 5.6vw, 28px)/1 var(--display);
-  letter-spacing: -0.02em;
-}
-.tile.plain .badge { display: none; }
-.appear .tile-inner { animation: appear 160ms 100ms ease-out both; }
-.pop .tile-inner { animation: pop 200ms 90ms ease-out both; }
-@keyframes appear { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@keyframes pop {
-  0% { transform: scale(0.5); opacity: 0; }
-  45% { transform: scale(1.12); opacity: 1; }
-  100% { transform: scale(1); }
-}
-
-.overlay {
-  position: absolute; inset: 0; z-index: 10;
-  display: grid; place-items: center;
-  padding: 20px;
-  text-align: center;
-  overflow: hidden;
-  background: var(--veil);
-  border-radius: var(--radius);
-  animation: fade 300ms ease-out both;
-}
-@keyframes fade { from { opacity: 0; } }
-.overlay-card { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 290px; }
-.overlay-photo {
-  width: clamp(72px, 24vw, 150px);
-  aspect-ratio: 1;
-  border: 5px solid var(--mount);
-  border-radius: 8px;
-  background: var(--cell) center / cover no-repeat;
-  box-shadow: 0 8px 22px var(--shadow);
-  transform: rotate(-3deg);
-}
-.overlay h2 {
-  margin: 6px 0 0;
-  font: 800 clamp(22px, 6.5vw, 28px)/1.05 var(--display);
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.overlay p { margin: 0; color: var(--muted); font-size: 14px; text-wrap: balance; }
-.overlay-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
-
-.how { margin: -4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
-
-/* Roll */
-.roll {
-  min-width: 0;
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 14px;
-  background: var(--surface);
-  border-radius: var(--radius);
-}
-.roll-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.roll h2 { margin: 0; font: 800 20px/1.1 var(--display); letter-spacing: -0.01em; }
-.roll-count { font: 700 11px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-.hint { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
-.strip {
-  display: flex; gap: 6px;
-  overflow-x: auto;
-  padding: 16px 8px;
-  background-color: var(--film);
-  background-image:
-    linear-gradient(90deg, var(--sprocket) 0 7px, transparent 7px),
-    linear-gradient(90deg, var(--sprocket) 0 7px, transparent 7px);
-  background-size: 15px 5px, 15px 5px;
-  background-position: 5px 5px, 5px calc(100% - 5px);
-  background-repeat: repeat-x;
-  background-attachment: local;
   border-radius: 6px;
-  scrollbar-width: thin;
-  scroll-snap-type: x proximity;
+  background: var(--tile-bg) center / cover no-repeat;
+  color: var(--tile-fg);
+  font-weight: 800;
+  font-size: clamp(16px, 6vw, 30px);
 }
-.frame {
-  flex: 0 0 auto;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 4px;
-  color: var(--edge);
-  background: none;
-  border: 0;
-  border-radius: 10px;
-  cursor: pointer;
-  scroll-snap-align: start;
-}
-.frame-img {
-  width: 64px; height: 64px;
-  border-radius: 3px;
-  background: var(--film) center / cover no-repeat;
-}
-.frame.sample .frame-img { filter: saturate(0.5) brightness(0.72); }
-.frame-label { font: 700 10px/1 var(--mono); letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
-.frame[aria-pressed="true"] { outline: 2.5px solid var(--accent); outline-offset: 0; }
-.frame-tools {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  padding: 10px;
-  border: 1.5px dashed var(--accent);
-  border-radius: 10px;
-}
-.frame-tools .what { flex: 1 1 100%; margin: 0; font-size: 14px; font-weight: 600; }
-.frame-tools .what span { font-family: var(--mono); font-size: 12px; color: var(--muted); font-weight: 500; }
-.status { margin: 0; min-height: 1.4em; font-size: 13px; color: var(--muted); }
-.status.error { color: var(--accent); }
-.roll-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
-.switch input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
-.link {
-  padding: 6px 0;
-  font: 600 13px/1.2 var(--body);
-  color: var(--muted);
-  background: none; border: 0;
-  text-decoration: underline; text-underline-offset: 3px;
-  cursor: pointer;
-}
-.link.armed { color: var(--accent); }
-.board.dragging { outline: 3px dashed var(--accent); outline-offset: 4px; }
+.tile.new .tile-face { animation: grow 150ms 80ms ease-out both; }
+@keyframes grow { from { transform: scale(0); } }
 
-@media (max-width: 380px) {
-  :root { --gap: 8px; }
-  .btn { padding: 0 11px; }
-  .score { min-width: 58px; padding-inline: 8px; }
+.message {
+  position: absolute; inset: 0;
+  z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: var(--veil);
+  border-radius: 10px;
+  font-size: 28px;
+  font-weight: 800;
 }
+
+.photos h2 { margin: 0 0 4px; font-size: 18px; }
+.photos p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.slots {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.slot {
+  height: auto;
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 6px;
+  background: var(--slot) center / cover no-repeat;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.slot.has-photo { color: transparent; }
+
 @media (prefers-reduced-motion: reduce) {
   .tile { transition: none; }
-  .tile-inner, .score-add, .overlay { animation: none !important; }
+  .tile.new .tile-face { animation: none; }
 }
 </style>
 </head>
 <body>
-<main class="app">
-  <header class="top">
-    <h1>Photo <span class="num">2048</span></h1>
-    <div class="scores">
-      <div class="score" id="score-box"><span class="label">Score</span><span class="value" id="score">0</span></div>
-      <div class="score"><span class="label">Best</span><span class="value" id="best">0</span></div>
-    </div>
+<main>
+  <header>
+    <h1>Photo 2048</h1>
+    <span class="score">Score <b id="score">0</b></span>
+    <button type="button" id="new-game">New game</button>
   </header>
 
-  <div class="controls">
-    <button type="button" class="btn primary" id="new-game">New game</button>
-    <button type="button" class="btn" id="undo" disabled>Undo</button>
-    <button type="button" class="btn accent" id="add-photos">Add photos</button>
-  </div>
-
-  <div class="board" id="board" tabindex="0" aria-label="Game board. Swipe, or use the arrow keys, to slide the tiles.">
+  <div class="board" id="board" tabindex="0" aria-label="Game board. Swipe or use the arrow keys.">
     <div class="cells" aria-hidden="true">
       <span></span><span></span><span></span><span></span>
       <span></span><span></span><span></span><span></span>
       <span></span><span></span><span></span><span></span>
       <span></span><span></span><span></span><span></span>
     </div>
-    <div class="tiles" id="tiles"></div>
-    <div class="overlay" id="overlay" hidden>
-      <div class="overlay-card">
-        <div class="overlay-photo" id="overlay-photo"></div>
-        <h2 id="overlay-title"></h2>
-        <p id="overlay-text"></p>
-        <div class="overlay-actions">
-          <button type="button" class="btn primary" id="overlay-primary"></button>
-          <button type="button" class="btn" id="overlay-secondary"></button>
-        </div>
-      </div>
+    <div id="tiles"></div>
+    <div class="message" id="message" hidden>
+      <span id="message-text"></span>
+      <button type="button" id="message-button"></button>
     </div>
   </div>
-  <p class="how">Swipe the board, or use the arrow keys. Two matching photos merge into the next photo on your roll.</p>
 
-  <section class="roll" aria-labelledby="roll-title">
-    <div class="roll-head">
-      <h2 id="roll-title">Your roll</h2>
-      <span class="roll-count" id="roll-count">0 of 11 set</span>
-    </div>
-    <p class="hint">Each frame is one tile, from 2 up to 2048. Faded frames are sample pictures until you add your own. Tap a frame to replace it or move it.</p>
-    <div class="strip" id="strip" role="group" aria-label="Photo frames"></div>
-    <div class="frame-tools" id="frame-tools" hidden>
-      <p class="what" id="tools-what"></p>
-      <button type="button" class="btn small accent" id="tool-replace">Replace</button>
-      <button type="button" class="btn small" id="tool-earlier" aria-label="Move earlier">&larr; Earlier</button>
-      <button type="button" class="btn small" id="tool-later" aria-label="Move later">Later &rarr;</button>
-      <button type="button" class="btn small" id="tool-sample">Use sample</button>
-    </div>
-    <p class="status" id="status" aria-live="polite"></p>
-    <div class="roll-foot">
-      <label class="switch"><input type="checkbox" id="show-numbers" checked> Show numbers on tiles</label>
-      <button type="button" class="link" id="clear-photos">Remove all my photos</button>
-    </div>
+  <section class="photos">
+    <h2>Photos</h2>
+    <p>Pick a photo for each tile, from 2 up to 2048. Tap a square to change it.</p>
+    <div class="slots" id="slots"></div>
+    <button type="button" id="upload">Upload photos</button>
   </section>
 
-  <input type="file" id="file-multi" class="visually-hidden" accept="image/*" multiple tabindex="-1" aria-hidden="true">
-  <input type="file" id="file-one" class="visually-hidden" accept="image/*" tabindex="-1" aria-hidden="true">
+  <input type="file" id="file-many" class="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+  <input type="file" id="file-one" class="file" accept="image/*" tabindex="-1" aria-hidden="true">
 </main>
 
 <script>
@@ -421,297 +201,129 @@ h1 .num { color: var(--accent); }
   'use strict';
 
   const SIZE = 4;
-  const FRAMES = 11;          // 2^1 .. 2^11 = 2 .. 2048
-  const PHOTO_PX = 360;       // uploaded photos are center-cropped to this square
-  const KEYS = { photos: 'p2048.photos', game: 'p2048.game', best: 'p2048.best', numbers: 'p2048.numbers' };
-
+  const SLOTS = 11; // tiles 2 .. 2048
+  const PHOTO_PX = 360;
   const $ = (s) => document.querySelector(s);
-  const store = {
-    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
-  };
-
-  /* ---------- Sample pictures: eleven landscapes from dawn to a starry night ---------- */
-  const SAMPLES = [
-    { sky: ['#ffd3a5', '#ff8d6b'], sun: [0.3, 0.55, 0.09], sunColor: '#fff3d6', hills: ['#c0607a', '#8e4466', '#5a2f4f'] },
-    { sky: ['#a9dcff', '#eaf8ff'], sun: [0.72, 0.28, 0.08], sunColor: '#fffbe0', hills: ['#7cc4a4', '#4e9c80', '#2f6e5a'] },
-    { sky: ['#5fb8f0', '#d9f1ff'], sun: [0.5, 0.16, 0.07], sunColor: '#ffffff', hills: ['#ebc47c', '#d39f4f', '#a8742c'] },
-    { sky: ['#2a9d8f', '#b4ecd6'], sun: [0.2, 0.22, 0.07], sunColor: '#fefae0', hills: ['#1f6f66', '#145550', '#0b3b38'] },
-    { sky: ['#f7b267', '#f4845f'], sun: [0.62, 0.5, 0.11], sunColor: '#fff1c1', hills: ['#7d4f50', '#5c3a3b', '#3d2627'] },
-    { sky: ['#f25c8c', '#ffb38a'], sun: [0.45, 0.6, 0.12], sunColor: '#ffe8d1', hills: ['#6b2d5c', '#4a1f42', '#2e1029'] },
-    { sky: ['#5b4b8a', '#e07a9a'], sun: [0.8, 0.62, 0.06], sunColor: '#ffd6e0', hills: ['#3a2f63', '#281f47', '#17112b'], stars: 25 },
-    { sky: ['#1b3a5c', '#3f7ca8'], sun: [0.25, 0.25, 0.06], sunColor: '#f2f6ff', hills: ['#123049', '#0b2236', '#061522'], stars: 50 },
-    { sky: ['#0b1d3a', '#1f4f6e'], sun: [0.7, 0.2, 0.08], sunColor: '#f5f1d6', hills: ['#0f2e3b', '#0a2029', '#04121a'], stars: 90 },
-    { sky: ['#06121f', '#0d3b3a'], sun: [0.15, 0.15, 0.03], sunColor: '#e9fff4', hills: ['#082a2a', '#051d1e', '#021012'], stars: 110, aurora: true },
-    { sky: ['#05060f', '#1d1648'], sun: [0.78, 0.18, 0.07], sunColor: '#fff7c2', hills: ['#120e2c', '#0b081d', '#050410'], stars: 220 },
-  ];
-
-  function rng(seed) {
-    let a = seed >>> 0;
-    return () => {
-      a = (a + 0x6d2b79f5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  function hexA(hex, a) {
-    const n = parseInt(hex.slice(1), 16);
-    return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
-  }
-  function drawSample(i) {
-    const S = PHOTO_PX, p = SAMPLES[i], rand = rng(i * 977 + 13);
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = S;
-    const g = cv.getContext('2d');
-    const sky = g.createLinearGradient(0, 0, 0, S * 0.8);
-    sky.addColorStop(0, p.sky[0]);
-    sky.addColorStop(1, p.sky[1]);
-    g.fillStyle = sky;
-    g.fillRect(0, 0, S, S);
-    for (let k = 0; k < (p.stars || 0); k++) {
-      g.fillStyle = `rgba(255,255,240,${0.35 + rand() * 0.65})`;
-      g.beginPath();
-      g.arc(rand() * S, rand() * S * 0.65, 0.4 + rand() * 1.3, 0, Math.PI * 2);
-      g.fill();
-    }
-    if (p.aurora) {
-      g.lineCap = 'round';
-      for (let b = 0; b < 4; b++) {
-        g.strokeStyle = b % 2 ? 'rgba(120,255,200,0.16)' : 'rgba(90,220,255,0.12)';
-        g.lineWidth = 22 + b * 8;
-        g.beginPath();
-        const ph = rand() * 6;
-        for (let x = -10; x <= S + 10; x += 6) {
-          const y = S * (0.22 + b * 0.06) + Math.sin(x / S * Math.PI * 2 + ph) * S * 0.06;
-          x < 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-        }
-        g.stroke();
-      }
-    }
-    const [sx, sy, sr] = [p.sun[0] * S, p.sun[1] * S, p.sun[2] * S];
-    const glow = g.createRadialGradient(sx, sy, sr * 0.5, sx, sy, sr * 4.5);
-    glow.addColorStop(0, hexA(p.sunColor, 0.55));
-    glow.addColorStop(1, hexA(p.sunColor, 0));
-    g.fillStyle = glow;
-    g.fillRect(0, 0, S, S);
-    g.fillStyle = p.sunColor;
-    g.beginPath();
-    g.arc(sx, sy, sr, 0, Math.PI * 2);
-    g.fill();
-    p.hills.forEach((col, layer) => {
-      const base = S * (0.6 + layer * 0.12), amp = S * (0.1 - layer * 0.022);
-      const f1 = 1 + rand() * 2, f2 = 3 + rand() * 4, ph = rand() * 6;
-      g.beginPath();
-      g.moveTo(0, S);
-      for (let x = 0; x <= S; x += 4) {
-        const t = (x / S) * Math.PI;
-        g.lineTo(x, base - amp * (Math.sin(t * f1 + ph) * 0.65 + Math.sin(t * f2 + ph * 2) * 0.35));
-      }
-      g.lineTo(S, S);
-      g.closePath();
-      g.fillStyle = col;
-      g.fill();
-    });
-    return cv.toDataURL('image/jpeg', 0.86);
-  }
-
-  function dataUrlToObjectUrl(d) {
-    const comma = d.indexOf(',');
-    const mime = (d.slice(0, comma).match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
-    const bin = atob(d.slice(comma + 1));
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return URL.createObjectURL(new Blob([bytes], { type: mime }));
-  }
+  const load = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   /* ---------- Photos ---------- */
-  let photos = store.get(KEYS.photos, []);
-  if (!Array.isArray(photos)) photos = [];
-  photos = Array.from({ length: FRAMES }, (_, i) =>
-    typeof photos[i] === 'string' && photos[i].startsWith('data:image/') ? photos[i] : null);
+  let photos = load('p2048.photos', []);
+  photos = Array.from({ length: SLOTS }, (_, i) =>
+    Array.isArray(photos) && typeof photos[i] === 'string' && photos[i].startsWith('data:image/') ? photos[i] : null);
 
-  const sampleUrls = SAMPLES.map((_, i) => dataUrlToObjectUrl(drawSample(i)));
-  const userUrls = Array(FRAMES).fill(null);
-  let photoVersion = 0;
-
-  function refreshUrls() {
-    for (let i = 0; i < FRAMES; i++) {
-      if (userUrls[i]) URL.revokeObjectURL(userUrls[i]);
-      userUrls[i] = photos[i] ? dataUrlToObjectUrl(photos[i]) : null;
-    }
-    photoVersion++;
-  }
-  const urlFor = (level) => (level >= 1 && level <= FRAMES ? userUrls[level - 1] || sampleUrls[level - 1] : null);
-
-  function savePhotos() {
-    if (!store.set(KEYS.photos, photos)) {
-      say('Your photos are in this game, but this browser would not save them for next time.', true);
-      return false;
-    }
-    return true;
-  }
-
-  async function fileToPhoto(file) {
+  // Center-crop to a square and shrink, so photos stay small enough to save.
+  async function toPhoto(file) {
     const url = URL.createObjectURL(file);
     try {
       const img = new Image();
       img.src = url;
       await img.decode();
       const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h);
-      if (!s) throw new Error('empty image');
-      const cv = document.createElement('canvas');
-      cv.width = cv.height = PHOTO_PX;
-      const g = cv.getContext('2d');
-      g.imageSmoothingQuality = 'high';
-      g.drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, PHOTO_PX, PHOTO_PX);
-      return cv.toDataURL('image/jpeg', 0.82);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = PHOTO_PX;
+      canvas.getContext('2d').drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, PHOTO_PX, PHOTO_PX);
+      return canvas.toDataURL('image/jpeg', 0.82);
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
-  async function readFiles(files) {
-    const out = [], failed = [];
-    for (const f of files) {
-      if (f.type && !f.type.startsWith('image/')) { failed.push(f.name); continue; }
-      try { out.push(await fileToPhoto(f)); } catch { failed.push(f.name); }
-    }
-    return { out, failed };
-  }
-
   function photosChanged() {
-    refreshUrls();
-    savePhotos();
-    renderRoll();
-    render();
-    if (!overlayEl.hidden) showOverlay(overlayKind);
+    save('p2048.photos', photos);
+    renderSlots();
+    renderTiles(true);
   }
 
-  async function addPhotos(files) {
-    if (!files.length) return;
-    say(files.length === 1 ? 'Adding your photo…' : `Adding ${files.length} photos…`);
-    const { out, failed } = await readFiles(files);
-    let added = 0;
-    for (const d of out) {
-      const slot = photos.indexOf(null);
-      if (slot === -1) break;
-      photos[slot] = d;
-      added++;
+  const slotsEl = $('#slots');
+  const fileMany = $('#file-many'), fileOne = $('#file-one');
+  let pickingSlot = -1;
+
+  function renderSlots() {
+    slotsEl.textContent = '';
+    photos.forEach((src, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'slot' + (src ? ' has-photo' : '');
+      b.textContent = 2 ** (i + 1);
+      b.setAttribute('aria-label', `Photo for tile ${2 ** (i + 1)}`);
+      if (src) b.style.backgroundImage = `url("${src}")`;
+      b.addEventListener('click', () => { pickingSlot = i; fileOne.click(); });
+      slotsEl.appendChild(b);
+    });
+  }
+
+  $('#upload').addEventListener('click', () => fileMany.click());
+  fileMany.addEventListener('change', async () => {
+    const files = [...fileMany.files];
+    fileMany.value = '';
+    // Fill the empty squares in order. If every square already has a photo,
+    // replace them starting from the 2.
+    const allFull = photos.every(Boolean);
+    for (let n = 0; n < files.length; n++) {
+      const slot = allFull ? n : photos.indexOf(null);
+      if (slot === -1 || slot >= SLOTS) break;
+      try { photos[slot] = await toPhoto(files[n]); } catch {}
     }
-    const extra = out.length - added;
-    if (added) photosChanged();
-    const parts = [];
-    if (added) parts.push(`Added ${added} photo${added === 1 ? '' : 's'}.`);
-    if (extra) parts.push(added
-      ? `${extra} didn't fit because every frame is full. Tap a frame and choose Replace to swap one in.`
-      : 'Every frame already has a photo. Tap a frame and choose Replace to swap one in.');
-    if (failed.length) parts.push(`Couldn't open ${failed.join(', ')}. Try a JPEG or PNG.`);
-    say(parts.join(' '), !added && (failed.length > 0 || extra > 0));
-  }
-
-  async function replacePhoto(index, file) {
-    say('Adding your photo…');
-    const { out, failed } = await readFiles([file]);
-    if (!out.length) { say(`Couldn't open ${failed[0] || 'that file'}. Try a JPEG or PNG.`, true); return; }
-    photos[index] = out[0];
     photosChanged();
-    say(`Frame ${index + 1} updated.`);
-  }
+  });
+  fileOne.addEventListener('change', async () => {
+    const f = fileOne.files[0];
+    fileOne.value = '';
+    if (!f || pickingSlot < 0) return;
+    try { photos[pickingSlot] = await toPhoto(f); } catch { return; }
+    photosChanged();
+  });
 
-  /* ---------- Game state ---------- */
-  let grid, score = 0, won = false, keepPlaying = false, over = false, nextId = 1, prev = null;
-  let best = Number(store.get(KEYS.best, 0)) || 0;
-
+  /* ---------- Game ---------- */
+  let grid, score, won, nextId = 1;
   const emptyGrid = () => Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
-  function eachTile(fn) {
-    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (grid[r][c]) fn(grid[r][c]);
-  }
-  function serialize() {
-    const tiles = [];
-    eachTile((t) => tiles.push([t.r, t.c, t.level]));
-    return { tiles, score, won, keepPlaying };
-  }
-  function restore(s) {
-    grid = emptyGrid();
-    for (const [r, c, level] of s.tiles) grid[r][c] = { id: nextId++, level, r, c };
-    score = s.score || 0;
-    won = !!s.won;
-    keepPlaying = !!s.keepPlaying;
-    over = !movesAvailable();
-  }
-  function saveGame() { store.set(KEYS.game, serialize()); }
-  function validSave(s) {
-    return s && Array.isArray(s.tiles) && s.tiles.length > 0 && s.tiles.every((t) =>
-      Array.isArray(t) && t.length === 3 && t.every(Number.isInteger) &&
-      t[0] >= 0 && t[0] < SIZE && t[1] >= 0 && t[1] < SIZE && t[2] >= 1 && t[2] <= 20);
+  const tiles = () => grid.flat().filter(Boolean);
+
+  function addRandomTile() {
+    const empty = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (!grid[r][c]) empty.push([r, c]);
+    if (!empty.length) return;
+    const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+    grid[r][c] = { id: nextId++, level: Math.random() < 0.9 ? 1 : 2, r, c, isNew: true };
   }
 
-  function emptyCells() {
-    const out = [];
-    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (!grid[r][c]) out.push([r, c]);
-    return out;
-  }
-  function spawn() {
-    const cells = emptyCells();
-    if (!cells.length) return;
-    const [r, c] = cells[Math.floor(Math.random() * cells.length)];
-    grid[r][c] = { id: nextId++, level: Math.random() < 0.9 ? 1 : 2, r, c };
-  }
-  function movesAvailable() {
+  function canMove() {
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
       const t = grid[r][c];
       if (!t) return true;
-      if (c + 1 < SIZE && grid[r][c + 1] && grid[r][c + 1].level === t.level) return true;
-      if (r + 1 < SIZE && grid[r + 1][c] && grid[r + 1][c].level === t.level) return true;
+      if (c + 1 < SIZE && grid[r][c + 1]?.level === t.level) return true;
+      if (r + 1 < SIZE && grid[r + 1][c]?.level === t.level) return true;
     }
     return false;
   }
-  // Each line lists cell positions starting from the edge tiles slide toward.
-  function lines(dir) {
-    const out = [];
-    for (let i = 0; i < SIZE; i++) {
-      const line = [];
-      for (let j = 0; j < SIZE; j++) {
-        const k = SIZE - 1 - j;
-        line.push(dir === 'left' ? [i, j] : dir === 'right' ? [i, k] : dir === 'up' ? [j, i] : [k, i]);
-      }
-      out.push(line);
-    }
-    return out;
-  }
 
-  function newGame() {
-    grid = emptyGrid();
-    score = 0; won = false; keepPlaying = false; over = false; prev = null;
-    spawn(); spawn();
-    hideOverlay();
-    rebuildTiles();
-    saveGame();
-    updateHud();
+  // Cell positions for one row/column, starting at the edge the tiles slide toward.
+  function line(dir, i) {
+    return Array.from({ length: SIZE }, (_, j) => {
+      const k = SIZE - 1 - j;
+      return dir === 'left' ? [i, j] : dir === 'right' ? [i, k] : dir === 'up' ? [j, i] : [k, i];
+    });
   }
 
   function move(dir) {
-    if (over || (won && !keepPlaying) || !overlayEl.hidden) return;
-    const before = serialize();
+    if (!messageEl.hidden) return;
     const next = emptyGrid();
-    const leaving = [];
-    let moved = false, gained = 0, top = 0;
-    for (const line of lines(dir)) {
-      const tiles = line.map(([r, c]) => grid[r][c]).filter(Boolean);
+    const merged = [];
+    let moved = false;
+    for (let i = 0; i < SIZE; i++) {
+      const cells = line(dir, i);
+      const row = cells.map(([r, c]) => grid[r][c]).filter(Boolean);
       let k = 0;
-      for (let i = 0; i < tiles.length; i++, k++) {
-        const [r, c] = line[k];
-        const t = tiles[i];
-        const u = tiles[i + 1];
+      for (let j = 0; j < row.length; j++, k++) {
+        const [r, c] = cells[k];
+        const t = row[j], u = row[j + 1];
         if (u && u.level === t.level) {
-          const merged = { id: nextId++, level: t.level + 1, r, c, merged: true };
-          next[r][c] = merged;
-          leaving.push({ tile: t, r, c }, { tile: u, r, c });
-          gained += 2 ** merged.level;
-          top = Math.max(top, merged.level);
+          next[r][c] = { id: t.id, level: t.level + 1, r, c };
+          merged.push({ id: u.id, r, c });
+          score += 2 ** (t.level + 1);
           moved = true;
-          i++;
+          j++;
         } else {
           if (t.r !== r || t.c !== c) moved = true;
           next[r][c] = { id: t.id, level: t.level, r, c };
@@ -719,310 +331,130 @@ h1 .num { color: var(--accent); }
       }
     }
     if (!moved) return;
-    prev = before;
     grid = next;
-    score += gained;
-    if (score > best) { best = score; store.set(KEYS.best, best); }
-    spawn();
-    render(leaving);
-    if (gained) floatScore(gained);
-    if (top >= FRAMES && !won) {
-      won = true;
-      showOverlay('win');
-    } else if (!movesAvailable()) {
-      over = true;
-      showOverlay('over');
-    }
-    saveGame();
-    updateHud();
+    addRandomTile();
+    renderTiles(false, merged);
+    if (!won && tiles().some((t) => t.level >= SLOTS)) { won = true; showMessage('You win!', 'Keep going'); }
+    else if (!canMove()) showMessage('Game over', 'Try again');
+    persist();
   }
 
-  function undo() {
-    if (!prev) return;
-    restore(prev);
-    prev = null;
-    hideOverlay();
-    if (won && !keepPlaying) showOverlay('win');
-    rebuildTiles();
-    saveGame();
-    updateHud();
+  function newGame() {
+    grid = emptyGrid();
+    score = 0;
+    won = false;
+    addRandomTile();
+    addRandomTile();
+    messageEl.hidden = true;
+    renderTiles(true);
+    persist();
   }
 
-  /* ---------- Rendering ---------- */
-  const boardEl = $('#board'), tilesEl = $('#tiles'), overlayEl = $('#overlay');
+  function persist() {
+    $('#score').textContent = score;
+    save('p2048.game', { tiles: tiles().map((t) => [t.r, t.c, t.level]), score, won });
+  }
+
+  /* ---------- Drawing ---------- */
+  const tilesEl = $('#tiles');
   const els = new Map();
-  const plainColor = (level) => `hsl(${(level * 37 + 200) % 360} 48% 40%)`;
+  const NUMBER_COLORS = ['#eee4da', '#ede0c8', '#f2b179', '#f59563', '#f67c5f', '#f65e3b', '#edcf72', '#edcc61', '#edc850', '#edc53f', '#edc22e'];
 
-  function makeTileEl() {
-    const el = document.createElement('div');
-    el.className = 'tile';
-    el.innerHTML = '<div class="tile-inner"><div class="photo"></div><span class="badge"></span></div>';
-    return el;
-  }
   function paint(el, t) {
     el.style.setProperty('--r', t.r);
     el.style.setProperty('--c', t.c);
-    if (el._level === t.level && el._ver === photoVersion) return;
-    el._level = t.level;
-    el._ver = photoVersion;
-    const value = 2 ** t.level, src = urlFor(t.level);
-    const photo = el.firstChild.firstChild, badge = el.firstChild.lastChild;
-    badge.textContent = value;
-    if (src) {
-      el.classList.remove('plain');
-      photo.style.backgroundImage = `url("${src}")`;
-      photo.textContent = '';
+    const face = el.firstChild;
+    const photo = photos[t.level - 1];
+    if (photo) {
+      face.style.backgroundImage = `url("${photo}")`;
+      face.textContent = '';
     } else {
-      el.classList.add('plain');
-      el.style.setProperty('--tile-bg', plainColor(t.level));
-      photo.style.backgroundImage = 'none';
-      photo.textContent = value;
+      face.style.backgroundImage = 'none';
+      face.style.setProperty('--tile-bg', NUMBER_COLORS[Math.min(t.level, SLOTS) - 1]);
+      face.style.setProperty('--tile-fg', t.level <= 2 ? '#776e65' : '#ffffff');
+      face.textContent = 2 ** t.level;
     }
   }
-  function render(leaving = []) {
-    for (const { tile, r, c } of leaving) {
-      const el = els.get(tile.id);
+
+  function renderTiles(rebuild, merged = []) {
+    if (rebuild) { tilesEl.textContent = ''; els.clear(); }
+    // A tile absorbed in a merge slides into place underneath, then disappears.
+    for (const m of merged) {
+      const el = els.get(m.id);
       if (!el) continue;
-      els.delete(tile.id);
-      el.classList.add('leaving');
-      el.style.setProperty('--r', r);
-      el.style.setProperty('--c', c);
-      setTimeout(() => el.remove(), 130);
+      els.delete(m.id);
+      el.classList.add('gone');
+      el.style.setProperty('--r', m.r);
+      el.style.setProperty('--c', m.c);
+      setTimeout(() => el.remove(), 100);
     }
-    const alive = new Set();
-    eachTile((t) => {
-      alive.add(t.id);
+    for (const t of tiles()) {
       let el = els.get(t.id);
       if (!el) {
-        el = makeTileEl();
-        el.classList.add(t.merged ? 'pop' : 'appear');
-        paint(el, t);
+        el = document.createElement('div');
+        el.className = 'tile' + (t.isNew ? ' new' : '');
+        el.innerHTML = '<div class="tile-face"></div>';
         tilesEl.appendChild(el);
         els.set(t.id, el);
-      } else {
-        paint(el, t);
       }
-    });
-    for (const [id, el] of els) if (!alive.has(id)) { el.remove(); els.delete(id); }
-  }
-  function rebuildTiles() {
-    for (const el of els.values()) el.remove();
-    els.clear();
-    tilesEl.textContent = '';
-    render();
-  }
-
-  const scoreEl = $('#score'), bestEl = $('#best'), undoBtn = $('#undo');
-  function updateHud() {
-    scoreEl.textContent = score;
-    bestEl.textContent = best;
-    undoBtn.disabled = !prev;
-  }
-  function floatScore(n) {
-    const s = document.createElement('span');
-    s.className = 'score-add';
-    s.textContent = `+${n}`;
-    $('#score-box').appendChild(s);
-    setTimeout(() => s.remove(), 750);
-  }
-
-  /* ---------- Overlay ---------- */
-  let overlayKind = null;
-  const ovPhoto = $('#overlay-photo'), ovTitle = $('#overlay-title'), ovText = $('#overlay-text');
-  const ovPrimary = $('#overlay-primary'), ovSecondary = $('#overlay-secondary');
-  function highestLevel() { let m = 0; eachTile((t) => { m = Math.max(m, t.level); }); return m; }
-  function showOverlay(kind) {
-    overlayKind = kind;
-    const level = kind === 'win' ? FRAMES : highestLevel();
-    const src = urlFor(level);
-    ovPhoto.hidden = !src;
-    if (src) ovPhoto.style.backgroundImage = `url("${src}")`;
-    if (kind === 'win') {
-      ovTitle.textContent = 'You made 2048';
-      ovText.textContent = 'That is the last photo on your roll. Keep going to push your score higher.';
-      ovPrimary.textContent = 'Keep going';
-      ovSecondary.textContent = 'New game';
-      ovSecondary.hidden = false;
-    } else {
-      ovTitle.textContent = 'No moves left';
-      ovText.textContent = `You scored ${score}. Your biggest tile was ${2 ** level}.`;
-      ovPrimary.textContent = 'New game';
-      ovSecondary.textContent = 'Undo last move';
-      ovSecondary.hidden = !prev;
+      paint(el, t);
+      delete t.isNew;
     }
-    overlayEl.hidden = false;
   }
-  function hideOverlay() { overlayEl.hidden = true; overlayKind = null; }
-  ovPrimary.addEventListener('click', () => {
-    if (overlayKind === 'win') { keepPlaying = true; hideOverlay(); saveGame(); boardEl.focus({ preventScroll: true }); }
+
+  /* ---------- Messages ---------- */
+  const messageEl = $('#message');
+  function showMessage(text, buttonText) {
+    $('#message-text').textContent = text;
+    $('#message-button').textContent = buttonText;
+    messageEl.hidden = false;
+  }
+  $('#message-button').addEventListener('click', () => {
+    if (canMove()) messageEl.hidden = true; // "Keep going" after a win
     else newGame();
   });
-  ovSecondary.addEventListener('click', () => {
-    if (overlayKind === 'win') newGame();
-    else undo();
-  });
+  $('#new-game').addEventListener('click', newGame);
 
-  /* ---------- Input ---------- */
-  const KEYMAP = {
-    ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
-    a: 'left', d: 'right', w: 'up', s: 'down', A: 'left', D: 'right', W: 'up', S: 'down',
-  };
+  /* ---------- Controls ---------- */
+  const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
   document.addEventListener('keydown', (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.target.closest && e.target.closest('input, textarea, select')) return;
-    const dir = KEYMAP[e.key];
-    if (!dir) return;
+    if (!KEYS[e.key]) return;
     e.preventDefault();
-    move(dir);
+    move(KEYS[e.key]);
   });
 
+  const board = $('#board');
   let start = null;
-  boardEl.addEventListener('pointerdown', (e) => {
-    if (e.button > 0 || e.target.closest('button')) return;
+  board.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };
-    try { boardEl.setPointerCapture(e.pointerId); } catch {}
+    try { board.setPointerCapture(e.pointerId); } catch {}
   });
-  boardEl.addEventListener('pointerup', (e) => {
+  board.addEventListener('pointerup', (e) => {
     if (!start || e.pointerId !== start.id) return;
     const dx = e.clientX - start.x, dy = e.clientY - start.y;
     start = null;
-    const ax = Math.abs(dx), ay = Math.abs(dy);
-    if (Math.max(ax, ay) < 22) return;
-    move(ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+    move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
   });
-  boardEl.addEventListener('pointercancel', () => { start = null; });
-  // Stop iOS from scrolling or zooming the page while swiping on the board.
-  boardEl.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-
-  // Two-tap confirm, since the page can't use confirm() dialogs everywhere.
-  function armed(btn, prompt, action, shouldAsk = () => true) {
-    const label = btn.textContent;
-    let timer = null;
-    btn.addEventListener('click', () => {
-      if (!shouldAsk() || btn.classList.contains('armed')) {
-        clearTimeout(timer);
-        btn.classList.remove('armed');
-        btn.textContent = label;
-        action();
-        return;
-      }
-      btn.classList.add('armed');
-      btn.textContent = prompt;
-      timer = setTimeout(() => { btn.classList.remove('armed'); btn.textContent = label; }, 3000);
-    });
-  }
-  armed($('#new-game'), 'Tap again to restart', newGame, () => score > 0 && !over);
-  undoBtn.addEventListener('click', undo);
-
-  /* ---------- Roll UI ---------- */
-  const stripEl = $('#strip'), toolsEl = $('#frame-tools'), statusEl = $('#status');
-  const fileMulti = $('#file-multi'), fileOne = $('#file-one');
-  let selected = -1, replaceIndex = -1;
-
-  function say(msg, isError = false) {
-    statusEl.textContent = msg;
-    statusEl.classList.toggle('error', !!isError);
-  }
-
-  function renderRoll() {
-    stripEl.textContent = '';
-    for (let i = 0; i < FRAMES; i++) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'frame' + (photos[i] ? '' : ' sample');
-      b.setAttribute('aria-pressed', String(i === selected));
-      b.setAttribute('aria-label', `Frame ${i + 1}, tile ${2 ** (i + 1)}, ${photos[i] ? 'your photo' : 'sample picture'}`);
-      b.innerHTML = `<span class="frame-img"></span><span class="frame-label">&#9656;${2 ** (i + 1)}</span>`;
-      b.firstChild.style.backgroundImage = `url("${urlFor(i + 1)}")`;
-      b.addEventListener('click', () => select(selected === i ? -1 : i));
-      stripEl.appendChild(b);
-    }
-    const n = photos.filter(Boolean).length;
-    $('#roll-count').textContent = `${n} of ${FRAMES} set`;
-    renderTools();
-  }
-  function renderTools() {
-    toolsEl.hidden = selected < 0;
-    if (selected < 0) return;
-    const mine = !!photos[selected];
-    $('#tools-what').innerHTML = `Frame ${selected + 1} <span>&middot; tile ${2 ** (selected + 1)} &middot; ${mine ? 'your photo' : 'sample'}</span>`;
-    $('#tool-earlier').disabled = selected === 0;
-    $('#tool-later').disabled = selected === FRAMES - 1;
-    $('#tool-sample').disabled = !mine;
-    $('#tool-replace').textContent = mine ? 'Replace' : 'Choose photo';
-  }
-  function select(i) {
-    selected = i;
-    renderRoll();
-    if (i >= 0) stripEl.children[i].focus({ preventScroll: true });
-  }
-  function swap(a, b) {
-    [photos[a], photos[b]] = [photos[b], photos[a]];
-    selected = b;
-    photosChanged();
-    stripEl.children[b].scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    stripEl.children[b].focus({ preventScroll: true });
-  }
-
-  $('#add-photos').addEventListener('click', () => fileMulti.click());
-  fileMulti.addEventListener('change', () => {
-    const files = [...fileMulti.files];
-    fileMulti.value = '';
-    addPhotos(files);
-  });
-  $('#tool-replace').addEventListener('click', () => { replaceIndex = selected; fileOne.click(); });
-  fileOne.addEventListener('change', () => {
-    const f = fileOne.files[0];
-    fileOne.value = '';
-    if (f && replaceIndex >= 0) replacePhoto(replaceIndex, f);
-  });
-  $('#tool-earlier').addEventListener('click', () => { if (selected > 0) swap(selected, selected - 1); });
-  $('#tool-later').addEventListener('click', () => { if (selected < FRAMES - 1) swap(selected, selected + 1); });
-  $('#tool-sample').addEventListener('click', () => {
-    photos[selected] = null;
-    photosChanged();
-    say(`Frame ${selected + 1} is back to its sample picture.`);
-  });
-  armed($('#clear-photos'), 'Tap again to remove all photos', () => {
-    photos = Array(FRAMES).fill(null);
-    photosChanged();
-    say('Removed your photos. The sample pictures are back.');
-  }, () => photos.some(Boolean));
-
-  const numbersBox = $('#show-numbers');
-  numbersBox.checked = store.get(KEYS.numbers, true) !== false;
-  const applyNumbers = () => document.body.classList.toggle('hide-numbers', !numbersBox.checked);
-  numbersBox.addEventListener('change', () => { applyNumbers(); store.set(KEYS.numbers, numbersBox.checked); });
-  applyNumbers();
-
-  // Desktop: drop image files anywhere on the page.
-  let dragDepth = 0;
-  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
-  document.addEventListener('dragenter', (e) => { if (hasFiles(e)) { dragDepth++; boardEl.classList.add('dragging'); } });
-  document.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; boardEl.classList.remove('dragging'); } });
-  document.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
-  document.addEventListener('drop', (e) => {
-    if (!hasFiles(e)) return;
-    e.preventDefault();
-    dragDepth = 0;
-    boardEl.classList.remove('dragging');
-    addPhotos([...e.dataTransfer.files]);
-  });
+  board.addEventListener('pointercancel', () => { start = null; });
+  // Keep the page from scrolling while swiping on the board.
+  board.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
   /* ---------- Start ---------- */
-  refreshUrls();
-  renderRoll();
-  const saved = store.get(KEYS.game, null);
-  if (validSave(saved)) {
-    restore(saved);
-    rebuildTiles();
-    updateHud();
-    if (over) showOverlay('over');
-    else if (won && !keepPlaying) showOverlay('win');
+  renderSlots();
+  const saved = load('p2048.game', null);
+  if (saved && Array.isArray(saved.tiles) && saved.tiles.length) {
+    grid = emptyGrid();
+    for (const [r, c, level] of saved.tiles) grid[r][c] = { id: nextId++, level, r, c };
+    score = saved.score || 0;
+    won = !!saved.won;
+    persist();
+    renderTiles(true);
+    if (!canMove()) showMessage('Game over', 'Try again');
   } else {
     newGame();
   }
-  if (!photos.some(Boolean)) say('Playing with sample pictures. Tap Add photos to use your own.');
 })();
 </script>
 </body>
