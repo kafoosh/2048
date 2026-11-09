@@ -8,7 +8,7 @@ Open `index.html` in a browser, or host the folder anywhere static (for GitHub P
 
 Swipe on the board on a phone, or use the arrow keys on a computer.
 
-Tiles make a soft sound when they slide and a little pop when they combine; the pop gets higher as the tiles get bigger. Use the speaker button next to New game to mute. On iPhone, sound also follows the ring/silent switch.
+Tiles make a soft sound when they slide and a little pop when they combine; the pop gets higher as the tiles get bigger. Use the speaker button next to New game to mute. On iPhone, sound plays even when the ring/silent switch is on (like a music or video app), and only while sound is on and the page is open.
 
 ## Photos
 

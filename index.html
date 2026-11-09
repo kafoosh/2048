@@ -688,13 +688,38 @@ button.secondary { background: var(--slot); color: var(--fg); }
   let soundOn = load('p2048.sound', true) !== false;
   const soundBtn = $('#sound');
 
+  // iOS mutes Web Audio when the ring/silent switch is on unless the page's audio
+  // session is 'playback' (Safari's Audio Session API). Claim it only while sound is on
+  // and the page is visible, and hand it back ('auto') otherwise so other apps' audio
+  // can carry on. Browsers without the API skip this.
+  function setSession(type) {
+    try {
+      const session = navigator.audioSession;
+      if (session && session.type !== type) session.type = type;
+    } catch {}
+  }
   function audioCtx() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
-    if (!audio) audio = new AC();
-    if (audio.state === 'suspended') audio.resume();
+    if (!audio) { setSession('playback'); audio = new AC(); }
+    syncAudio();
     return audio;
   }
+  // Run audio only while sound is on and the page is on screen.
+  let away = false;
+  function syncAudio() {
+    if (!audio || audio.state === 'closed') return;
+    if (!soundOn || away || document.visibilityState === 'hidden') {
+      if (audio.state === 'running') audio.suspend().catch(() => {});
+      setSession('auto');
+    } else {
+      setSession('playback');
+      if (audio.state !== 'running') audio.resume().catch(() => {});
+    }
+  }
+  document.addEventListener('visibilitychange', syncAudio);
+  window.addEventListener('pagehide', () => { away = true; syncAudio(); });
+  window.addEventListener('pageshow', () => { away = false; syncAudio(); });
   // Browsers (iOS especially) only start audio after a tap, click or key press.
   for (const type of ['pointerdown', 'touchend', 'keydown']) {
     document.addEventListener(type, () => { if (soundOn) audioCtx(); }, { passive: true });
@@ -733,6 +758,7 @@ button.secondary { background: var(--slot); color: var(--fg); }
     soundBtn.setAttribute('aria-pressed', String(on));
     soundBtn.setAttribute('aria-label', on ? 'Sound on. Tap to mute.' : 'Sound off. Tap to turn on.');
     save('p2048.sound', on);
+    syncAudio();
   }
   soundBtn.addEventListener('click', () => {
     setSound(!soundOn);
