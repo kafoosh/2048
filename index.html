@@ -161,7 +161,7 @@ button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
   font-weight: 800;
 }
 
-.photos-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.photos-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .photos h2 { margin: 0; font-size: 18px; }
 button.link {
   height: auto;
@@ -171,12 +171,10 @@ button.link {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.photos p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
 .slots {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 6px;
-  margin-bottom: 12px;
 }
 .slot {
   height: auto;
@@ -282,9 +280,7 @@ button.secondary { background: var(--slot); color: var(--fg); }
       <button type="button" class="link" id="toggle-photos" aria-expanded="true" aria-controls="photos-body">Hide</button>
     </div>
     <div id="photos-body">
-      <p>Upload photos assigns them in the order you pick them: the first to 2, the next to 4, and so on. Tap a square to move, zoom or change that photo.</p>
       <div class="slots" id="slots"></div>
-      <button type="button" id="upload">Upload photos</button>
     </div>
   </section>
 
@@ -305,7 +301,6 @@ button.secondary { background: var(--slot); color: var(--fg); }
     </div>
   </div>
 
-  <input type="file" id="file-many" class="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
   <input type="file" id="file-one" class="file" accept="image/*" tabindex="-1" aria-hidden="true">
 </main>
 
@@ -404,7 +399,7 @@ button.secondary { background: var(--slot); color: var(--fg); }
   });
 
   const slotsEl = $('#slots');
-  const fileMany = $('#file-many'), fileOne = $('#file-one');
+  const fileOne = $('#file-one');
   let pickingSlot = -1;
 
   function renderSlots() {
@@ -432,16 +427,6 @@ button.secondary { background: var(--slot); color: var(--fg); }
   toggleBtn.addEventListener('click', () => setPhotosVisible(photosBody.hidden));
   setPhotosVisible(load('p2048.showPhotos', true) !== false);
 
-  $('#upload').addEventListener('click', () => fileMany.click());
-  fileMany.addEventListener('change', async () => {
-    // Assign in the order picked: first photo to 2, second to 4, and so on.
-    const files = [...fileMany.files].slice(0, SLOTS);
-    fileMany.value = '';
-    await Promise.all(files.map(async (file, i) => {
-      try { photos[i] = await toPhoto(file); } catch { return; }
-      photosChanged(); // show each photo as soon as it's ready
-    }));
-  });
   // A single photo for one square opens straight into the editor.
   fileOne.addEventListener('change', async () => {
     const f = fileOne.files[0];
