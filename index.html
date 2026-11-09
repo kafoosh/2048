@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Photo 2048">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<!-- page -->
+<title>Photo 2048</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root {
+  --bg: #faf8f5;
+  --fg: #2b2a28;
+  --muted: #77736d;
+  --board: #bbada0;
+  --cell: #cdc1b4;
+  --slot: #eee7de;
+  --photo-bg: #ffffff;
+  --veil: rgba(250, 248, 245, 0.8);
+  --btn: #2b2a28;
+  --btn-fg: #ffffff;
+  --gap: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1b1a; --fg: #eeeae4; --muted: #a29d96; --board: #4a443e; --cell: #5c554e;
+    --slot: #2c2a28; --photo-bg: #111110; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1b1a; --fg: #eeeae4; --muted: #a29d96; --board: #4a443e; --cell: #5c554e;
+  --slot: #2c2a28; --photo-bg: #111110; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { touch-action: manipulation; }
+:root {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+main {
+  max-width: 460px;
+  margin: 0 auto;
+  padding-block: 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+h1 { margin: 0 auto 0 0; font-size: 26px; font-weight: 800; white-space: nowrap; }
+button.icon {
+  width: 40px;
+  padding: 0;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  background: var(--slot);
+  color: var(--fg);
+}
+button.icon svg { width: 20px; height: 20px; }
+button.icon[aria-pressed="true"] .off,
+button.icon[aria-pressed="false"] .on { display: none; }
+@media (max-width: 400px) {
+  header { gap: 8px; }
+  h1 { font-size: 21px; }
+  #new-game { padding: 0 10px; }
+}
+.score {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 11px; line-height: 1.15; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.score b { font-size: 18px; letter-spacing: 0; color: var(--fg); font-variant-numeric: tabular-nums; }
+button {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--btn);
+  color: var(--btn-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
+.file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.board {
+  position: relative;
+  width: 100%;
+  width: min(100%, max(260px, calc(100dvh - 200px)));
+  aspect-ratio: 1;
+  margin-inline: auto;
+  background: var(--board);
+  border-radius: 10px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.cells {
+  position: absolute; inset: 0;
+  padding: var(--gap);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gap);
+}
+.cells span { background: var(--cell); border-radius: 6px; }
+.tile {
+  position: absolute;
+  z-index: 1;
+  left: var(--gap); top: var(--gap);
+  width: calc((100% - 5 * var(--gap)) / 4);
+  height: calc((100% - 5 * var(--gap)) / 4);
+  transform: translate(calc(var(--c) * (100% + var(--gap))), calc(var(--r) * (100% + var(--gap))));
+  transition: transform 100ms ease-out;
+}
+.tile.gone { z-index: 0; }
+.tile-face {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--tile-bg);
+  color: var(--tile-fg);
+  font-weight: 800;
+  font-size: clamp(16px, 6vw, 30px);
+}
+.tile.new .tile-face { animation: grow 150ms 80ms ease-out both; }
+@keyframes grow { from { transform: scale(0); } }
+
+.message {
+  position: absolute; inset: 0;
+  z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: var(--veil);
+  border-radius: 10px;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.photos-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.photos h2 { margin: 0; font-size: 18px; }
+button.link {
+  height: auto;
+  padding: 6px 0;
+  background: none;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.photos p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.slots {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.slot {
+  height: auto;
+  aspect-ratio: 1;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--slot);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.slot.has-photo { color: transparent; background: var(--photo-bg); }
+
+/* A photo placed inside a square (tile, square or editor frame); position and size are set inline. */
+.photo-img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.editor {
+  position: fixed; inset: 0;
+  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+           max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(0, 0, 0, 0.55);
+  overflow-y: auto;
+}
+.editor-card {
+  width: min(100%, 380px);
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 12px;
+}
+.editor h2 { margin: 0; font-size: 18px; }
+.editor p { margin: 0; color: var(--muted); font-size: 14px; }
+.frame {
+  position: relative;
+  width: 100%;
+  width: min(100%, max(180px, calc(100dvh - 340px)));
+  max-width: 100%;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--photo-bg);
+  outline: 1px solid var(--cell);
+  touch-action: none;
+  cursor: grab;
+}
+.frame:active { cursor: grabbing; }
+.zoom { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.zoom input { flex: 1; min-width: 0; accent-color: var(--fg); }
+.editor-links { display: flex; gap: 16px; }
+.editor-actions { display: flex; gap: 8px; }
+.editor-actions button { flex: 1; }
+button.secondary { background: var(--slot); color: var(--fg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tile { transition: none; }
+  .tile.new .tile-face { animation: none; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Photo 2048</h1>
+    <span class="score">Score <b id="score">0</b></span>
+    <button type="button" class="icon" id="sound" aria-label="Sound" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>
+        <path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>
+        <path class="off" d="M17 9.5l5 5M22 9.5l-5 5"/>
+      </svg>
+    </button>
+    <button type="button" id="new-game">New game</button>
+  </header>
+
+  <div class="board" id="board" tabindex="0" aria-label="Game board. Swipe or use the arrow keys.">
+    <div class="cells" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div id="tiles"></div>
+    <div class="message" id="message" hidden>
+      <span id="message-text"></span>
+      <button type="button" id="message-button"></button>
+    </div>
+  </div>
+
+  <section class="photos">
+    <div class="photos-head">
+      <h2>Photos</h2>
+      <button type="button" class="link" id="toggle-photos" aria-expanded="true" aria-controls="photos-body">Hide</button>
+    </div>
+    <div id="photos-body">
+      <p>Upload photos assigns them in the order you pick them: the first to 2, the next to 4, and so on. Tap a square to move, zoom or change that photo.</p>
+      <div class="slots" id="slots"></div>
+      <button type="button" id="upload">Upload photos</button>
+    </div>
+  </section>
+
+  <div class="editor" id="editor" role="dialog" aria-modal="true" aria-labelledby="editor-title" hidden>
+    <div class="editor-card">
+      <h2 id="editor-title"></h2>
+      <div class="frame" id="frame"></div>
+      <p>Drag to move. Pinch or use the slider to zoom.</p>
+      <label class="zoom">Zoom <input type="range" id="zoom" min="0" max="1000" step="1"></label>
+      <div class="editor-links">
+        <button type="button" class="link" id="editor-change">Change photo</button>
+        <button type="button" class="link" id="editor-remove">Remove photo</button>
+      </div>
+      <div class="editor-actions">
+        <button type="button" class="secondary" id="editor-cancel">Cancel</button>
+        <button type="button" id="editor-done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="file-many" class="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+  <input type="file" id="file-one" class="file" accept="image/*" tabindex="-1" aria-hidden="true">
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const SIZE = 4;
+  const SLOTS = 11; // tiles 2 .. 2048
+  const PHOTO_PX = 720; // longest side of a saved photo
+  const $ = (s) => document.querySelector(s);
+  const load = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+  /* ---------- Photos ----------
+     Each photo is stored with its placement inside a square tile:
+       iw, ih  original pixel size
+       z       zoom, where 1 means the whole photo just fits the tile
+       cx, cy  where the photo's center sits in the tile (0..1)            */
+  const isData = (v) => typeof v === 'string' && v.startsWith('data:image/');
+  const num = (v, d) => (Number.isFinite(+v) ? +v : d);
+  function readPhoto(v) {
+    if (isData(v)) return { src: v, iw: 1, ih: 1, z: 1, cx: 0.5, cy: 0.5, legacy: true }; // older saves
+    if (v && isData(v.src) && v.iw > 0 && v.ih > 0) {
+      return { src: v.src, iw: +v.iw, ih: +v.ih, z: num(v.z, 1), cx: num(v.cx, 0.5), cy: num(v.cy, 0.5) };
+    }
+    return null;
+  }
+  const savedPhotos = load('p2048.photos', []);
+  let photos = Array.from({ length: SLOTS }, (_, i) => readPhoto(Array.isArray(savedPhotos) ? savedPhotos[i] : null));
+
+  const maxZoom = (p) => 4 * Math.max(p.iw, p.ih) / Math.min(p.iw, p.ih);
+  function layout(p) {
+    const m = Math.max(p.iw, p.ih);
+    const w = (p.iw / m) * p.z, h = (p.ih / m) * p.z;
+    return { w, h, left: p.cx - w / 2, top: p.cy - h / 2 };
+  }
+  // A photo larger than the tile must keep the tile covered; a smaller one must stay inside it.
+  function clampAxis(c, size) {
+    const half = size / 2;
+    return size >= 1 ? Math.min(half, Math.max(1 - half, c)) : Math.min(1 - half, Math.max(half, c));
+  }
+  function clampPhoto(p) {
+    p.z = Math.min(maxZoom(p), Math.max(1, p.z));
+    const { w, h } = layout(p);
+    p.cx = clampAxis(p.cx, w);
+    p.cy = clampAxis(p.cy, h);
+  }
+  function placeImg(img, p) {
+    const b = layout(p);
+    img.style.width = `${b.w * 100}%`;
+    img.style.height = `${b.h * 100}%`;
+    img.style.left = `${b.left * 100}%`;
+    img.style.top = `${b.top * 100}%`;
+  }
+  function photoImg(p) {
+    const img = new Image();
+    img.className = 'photo-img';
+    img.alt = '';
+    img.draggable = false;
+    img.src = p.src;
+    placeImg(img, p);
+    return img;
+  }
+
+  // Shrink the photo so it stays small enough to save, keeping enough detail to zoom in.
+  async function toPhoto(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const scale = Math.min(1, PHOTO_PX / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      return { src: canvas.toDataURL('image/jpeg', 0.85), iw: canvas.width, ih: canvas.height, z: 1, cx: 0.5, cy: 0.5 };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function photosChanged() {
+    save('p2048.photos', photos.map((p) => p && { src: p.src, iw: p.iw, ih: p.ih, z: p.z, cx: p.cx, cy: p.cy }));
+    renderSlots();
+    renderTiles(true);
+  }
+
+  // Photos saved by earlier versions have no size recorded; measure them once.
+  photos.forEach((p) => {
+    if (!p || !p.legacy) return;
+    const img = new Image();
+    img.onload = () => { p.iw = img.naturalWidth; p.ih = img.naturalHeight; delete p.legacy; photosChanged(); };
+    img.src = p.src;
+  });
+
+  const slotsEl = $('#slots');
+  const fileMany = $('#file-many'), fileOne = $('#file-one');
+  let pickingSlot = -1;
+
+  function renderSlots() {
+    slotsEl.textContent = '';
+    photos.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'slot' + (p ? ' has-photo' : '');
+      b.textContent = 2 ** (i + 1);
+      b.setAttribute('aria-label', p ? `Edit the photo for tile ${2 ** (i + 1)}` : `Choose a photo for tile ${2 ** (i + 1)}`);
+      if (p) b.appendChild(photoImg(p));
+      b.addEventListener('click', () => (p ? openEditor(i, p) : pickOne(i)));
+      slotsEl.appendChild(b);
+    });
+  }
+  function pickOne(i) { pickingSlot = i; fileOne.click(); }
+
+  const photosBody = $('#photos-body'), toggleBtn = $('#toggle-photos');
+  function setPhotosVisible(show) {
+    photosBody.hidden = !show;
+    toggleBtn.textContent = show ? 'Hide' : 'Show';
+    toggleBtn.setAttribute('aria-expanded', String(show));
+    save('p2048.showPhotos', show);
+  }
+  toggleBtn.addEventListener('click', () => setPhotosVisible(photosBody.hidden));
+  setPhotosVisible(load('p2048.showPhotos', true) !== false);
+
+  $('#upload').addEventListener('click', () => fileMany.click());
+  fileMany.addEventListener('change', async () => {
+    // Assign in the order picked: first photo to 2, second to 4, and so on.
+    const files = [...fileMany.files].slice(0, SLOTS);
+    fileMany.value = '';
+    await Promise.all(files.map(async (file, i) => {
+      try { photos[i] = await toPhoto(file); } catch { return; }
+      photosChanged(); // show each photo as soon as it's ready
+    }));
+  });
+  // A single photo for one square opens straight into the editor.
+  fileOne.addEventListener('change', async () => {
+    const f = fileOne.files[0];
+    fileOne.value = '';
+    if (!f || pickingSlot < 0) return;
+    let p;
+    try { p = await toPhoto(f); } catch { return; }
+    openEditor(pickingSlot, p);
+  });
+
+  /* ---------- Photo editor ---------- */
+  const editorEl = $('#editor'), frameEl = $('#frame'), zoomEl = $('#zoom');
+  let editSlot = -1, work = null, workImg = null;
+
+  function openEditor(i, p) {
+    editSlot = i;
+    work = { ...p };
+    clampPhoto(work);
+    $('#editor-title').textContent = `Photo for tile ${2 ** (i + 1)}`;
+    $('#editor-remove').hidden = !photos[i];
+    frameEl.textContent = '';
+    workImg = photoImg(work);
+    frameEl.appendChild(workImg);
+    syncZoom();
+    editorEl.hidden = false;
+    $('#editor-done').focus();
+  }
+  function closeEditor() {
+    editorEl.hidden = true;
+    work = workImg = null;
+    editSlot = -1;
+  }
+  function redraw() { placeImg(workImg, work); }
+  function syncZoom() { zoomEl.value = Math.round((Math.log(work.z) / Math.log(maxZoom(work))) * 1000); }
+  // Zoom so the point (ax, ay) in the frame (0..1) stays put.
+  function zoomTo(z, ax, ay) {
+    const nz = Math.min(maxZoom(work), Math.max(1, z));
+    const f = nz / work.z;
+    work.cx = ax + (work.cx - ax) * f;
+    work.cy = ay + (work.cy - ay) * f;
+    work.z = nz;
+    clampPhoto(work);
+    redraw();
+    syncZoom();
+  }
+
+  zoomEl.addEventListener('input', () => {
+    zoomTo(Math.exp((zoomEl.value / 1000) * Math.log(maxZoom(work))), 0.5, 0.5);
+  });
+
+  const pointers = new Map();
+  frameEl.addEventListener('pointerdown', (e) => {
+    try { frameEl.setPointerCapture(e.pointerId); } catch {}
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  frameEl.addEventListener('pointermove', (e) => {
+    if (!work || !pointers.has(e.pointerId)) return;
+    const rect = frameEl.getBoundingClientRect(), size = rect.width;
+    const before = [...pointers.values()].slice(0, 2).map((q) => ({ ...q }));
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const after = [...pointers.values()].slice(0, 2);
+    const mid = (a) => ({ x: (a[0].x + a[a.length - 1].x) / 2, y: (a[0].y + a[a.length - 1].y) / 2 });
+    const m0 = mid(before), m1 = mid(after);
+    work.cx += (m1.x - m0.x) / size;
+    work.cy += (m1.y - m0.y) / size;
+    if (after.length === 2) {
+      const d0 = Math.hypot(before[0].x - before[1].x, before[0].y - before[1].y);
+      const d1 = Math.hypot(after[0].x - after[1].x, after[0].y - after[1].y);
+      if (d0 > 0) { zoomTo(work.z * (d1 / d0), (m1.x - rect.left) / size, (m1.y - rect.top) / size); return; }
+    }
+    clampPhoto(work);
+    redraw();
+  });
+  const release = (e) => pointers.delete(e.pointerId);
+  frameEl.addEventListener('pointerup', release);
+  frameEl.addEventListener('pointercancel', release);
+  frameEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = frameEl.getBoundingClientRect();
+    zoomTo(work.z * Math.exp(-e.deltaY * 0.0015), (e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
+  }, { passive: false });
+
+  $('#editor-done').addEventListener('click', () => {
+    photos[editSlot] = work;
+    closeEditor();
+    photosChanged();
+  });
+  $('#editor-cancel').addEventListener('click', closeEditor);
+  $('#editor-change').addEventListener('click', () => pickOne(editSlot));
+  $('#editor-remove').addEventListener('click', () => {
+    photos[editSlot] = null;
+    closeEditor();
+    photosChanged();
+  });
+  editorEl.addEventListener('click', (e) => { if (e.target === editorEl) closeEditor(); });
+
+  /* ---------- Game ---------- */
+  let grid, score, won, nextId = 1;
+  const emptyGrid = () => Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+  const tiles = () => grid.flat().filter(Boolean);
+
+  function addRandomTile() {
+    const empty = [];
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (!grid[r][c]) empty.push([r, c]);
+    if (!empty.length) return;
+    const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+    grid[r][c] = { id: nextId++, level: Math.random() < 0.9 ? 1 : 2, r, c, isNew: true };
+  }
+
+  function canMove() {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const t = grid[r][c];
+      if (!t) return true;
+      if (c + 1 < SIZE && grid[r][c + 1]?.level === t.level) return true;
+      if (r + 1 < SIZE && grid[r + 1][c]?.level === t.level) return true;
+    }
+    return false;
+  }
+
+  // Cell positions for one row/column, starting at the edge the tiles slide toward.
+  function line(dir, i) {
+    return Array.from({ length: SIZE }, (_, j) => {
+      const k = SIZE - 1 - j;
+      return dir === 'left' ? [i, j] : dir === 'right' ? [i, k] : dir === 'up' ? [j, i] : [k, i];
+    });
+  }
+
+  function move(dir) {
+    if (!messageEl.hidden) return;
+    const next = emptyGrid();
+    const merged = [];
+    let moved = false, topMerge = 0;
+    for (let i = 0; i < SIZE; i++) {
+      const cells = line(dir, i);
+      const row = cells.map(([r, c]) => grid[r][c]).filter(Boolean);
+      let k = 0;
+      for (let j = 0; j < row.length; j++, k++) {
+        const [r, c] = cells[k];
+        const t = row[j], u = row[j + 1];
+        if (u && u.level === t.level) {
+          next[r][c] = { id: t.id, level: t.level + 1, r, c };
+          merged.push({ id: u.id, r, c });
+          topMerge = Math.max(topMerge, t.level + 1);
+          score += 2 ** (t.level + 1);
+          moved = true;
+          j++;
+        } else {
+          if (t.r !== r || t.c !== c) moved = true;
+          next[r][c] = { id: t.id, level: t.level, r, c };
+        }
+      }
+    }
+    if (!moved) return;
+    playMoveSound(topMerge);
+    grid = next;
+    addRandomTile();
+    renderTiles(false, merged);
+    if (!won && tiles().some((t) => t.level >= SLOTS)) { won = true; showMessage('You win!', 'Keep going'); }
+    else if (!canMove()) showMessage('Game over', 'Try again');
+    persist();
+  }
+
+  function newGame() {
+    grid = emptyGrid();
+    score = 0;
+    won = false;
+    addRandomTile();
+    addRandomTile();
+    messageEl.hidden = true;
+    renderTiles(true);
+    persist();
+  }
+
+  function persist() {
+    $('#score').textContent = score;
+    save('p2048.game', { tiles: tiles().map((t) => [t.r, t.c, t.level]), score, won });
+  }
+
+  /* ---------- Drawing ---------- */
+  const tilesEl = $('#tiles');
+  const els = new Map();
+  const NUMBER_COLORS = ['#eee4da', '#ede0c8', '#f2b179', '#f59563', '#f67c5f', '#f65e3b', '#edcf72', '#edcc61', '#edc850', '#edc53f', '#edc22e'];
+
+  function paint(el, t) {
+    el.style.setProperty('--r', t.r);
+    el.style.setProperty('--c', t.c);
+    if (el._level === t.level) return;
+    el._level = t.level;
+    const face = el.firstChild;
+    const photo = photos[t.level - 1];
+    if (photo) {
+      face.style.setProperty('--tile-bg', 'var(--photo-bg)');
+      face.textContent = '';
+      face.appendChild(photoImg(photo));
+    } else {
+      face.style.setProperty('--tile-bg', NUMBER_COLORS[Math.min(t.level, SLOTS) - 1]);
+      face.style.setProperty('--tile-fg', t.level <= 2 ? '#776e65' : '#ffffff');
+      face.textContent = 2 ** t.level;
+    }
+  }
+
+  function renderTiles(rebuild, merged = []) {
+    if (rebuild) { tilesEl.textContent = ''; els.clear(); }
+    // A tile absorbed in a merge slides into place underneath, then disappears.
+    for (const m of merged) {
+      const el = els.get(m.id);
+      if (!el) continue;
+      els.delete(m.id);
+      el.classList.add('gone');
+      el.style.setProperty('--r', m.r);
+      el.style.setProperty('--c', m.c);
+      setTimeout(() => el.remove(), 100);
+    }
+    for (const t of tiles()) {
+      let el = els.get(t.id);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'tile' + (t.isNew ? ' new' : '');
+        el.innerHTML = '<div class="tile-face"></div>';
+        tilesEl.appendChild(el);
+        els.set(t.id, el);
+      }
+      paint(el, t);
+      delete t.isNew;
+    }
+  }
+
+  /* ---------- Messages ---------- */
+  const messageEl = $('#message');
+  function showMessage(text, buttonText) {
+    $('#message-text').textContent = text;
+    $('#message-button').textContent = buttonText;
+    messageEl.hidden = false;
+  }
+  $('#message-button').addEventListener('click', () => {
+    if (canMove()) messageEl.hidden = true; // "Keep going" after a win
+    else newGame();
+  });
+  $('#new-game').addEventListener('click', newGame);
+
+  /* ---------- Sound ----------
+     Synthesized with the Web Audio API, so there are no sound files.        */
+  let audio = null;
+  let soundOn = load('p2048.sound', true) !== false;
+  const soundBtn = $('#sound');
+
+  function audioCtx() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audio) audio = new AC();
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  // Browsers (iOS especially) only start audio after a tap, click or key press.
+  for (const type of ['pointerdown', 'touchend', 'keydown']) {
+    document.addEventListener(type, () => { if (soundOn) audioCtx(); }, { passive: true });
+  }
+
+  // One short note that glides from freq to toFreq and fades out.
+  function note(freq, toFreq, delay, length, volume, wave = 'sine') {
+    const t = audio.currentTime + delay;
+    const osc = audio.createOscillator(), gain = audio.createGain();
+    osc.type = wave;
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(toFreq, t + length);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + length + 0.02);
+  }
+
+  // Merges climb a major pentatonic scale, so bigger tiles sound higher and happier.
+  const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33];
+  function playMoveSound(mergedLevel) {
+    if (!soundOn || !audioCtx()) return;
+    if (mergedLevel) {
+      const f = 523.25 * 2 ** (SCALE[Math.min(mergedLevel - 2, SCALE.length - 1)] / 12);
+      note(f * 0.7, f, 0, 0.12, 0.22);              // bubbly upward "bloop"
+      note(f * 2, f * 2.02, 0.05, 0.16, 0.05);      // little sparkle on top
+    } else {
+      note(620, 420, 0, 0.07, 0.07, 'triangle');    // soft "boop" for a slide
+    }
+  }
+
+  function setSound(on) {
+    soundOn = on;
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.setAttribute('aria-label', on ? 'Sound on. Tap to mute.' : 'Sound off. Tap to turn on.');
+    save('p2048.sound', on);
+  }
+  soundBtn.addEventListener('click', () => {
+    setSound(!soundOn);
+    if (soundOn) playMoveSound(2);
+  });
+  setSound(soundOn);
+
+  /* ---------- Controls ---------- */
+  const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+  document.addEventListener('keydown', (e) => {
+    if (!editorEl.hidden) {
+      if (e.key === 'Escape') closeEditor();
+      return;
+    }
+    if (!KEYS[e.key]) return;
+    e.preventDefault();
+    move(KEYS[e.key]);
+  });
+
+  const board = $('#board');
+  let start = null;
+  board.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    try { board.setPointerCapture(e.pointerId); } catch {}
+  });
+  board.addEventListener('pointerup', (e) => {
+    if (!start || e.pointerId !== start.id) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    start = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+    move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  });
+  board.addEventListener('pointercancel', () => { start = null; });
+  // Keep the page from scrolling while swiping on the board.
+  board.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+  /* ---------- Start ---------- */
+  renderSlots();
+  const saved = load('p2048.game', null);
+  if (saved && Array.isArray(saved.tiles) && saved.tiles.length) {
+    grid = emptyGrid();
+    for (const [r, c, level] of saved.tiles) grid[r][c] = { id: nextId++, level, r, c };
+    score = saved.score || 0;
+    won = !!saved.won;
+    persist();
+    renderTiles(true);
+    if (!canMove()) showMessage('Game over', 'Try again');
+  } else {
+    newGame();
+  }
+})();
+</script>
+</body>
+</html>
