@@ -119,8 +119,10 @@ button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
 .tile-face {
   width: 100%; height: 100%;
   display: grid; place-items: center;
+  position: relative;
+  overflow: hidden;
   border-radius: 6px;
-  background: var(--tile-bg) center / contain no-repeat;
+  background: var(--tile-bg);
   color: var(--tile-fg);
   font-weight: 800;
   font-size: clamp(16px, 6vw, 30px);
@@ -159,13 +161,64 @@ button.link {
   height: auto;
   aspect-ratio: 1;
   padding: 0;
+  position: relative;
+  overflow: hidden;
   border-radius: 6px;
-  background: var(--slot) center / contain no-repeat;
+  background: var(--slot);
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
 }
-.slot.has-photo { color: transparent; background-color: var(--photo-bg); }
+.slot.has-photo { color: transparent; background: var(--photo-bg); }
+
+/* A photo placed inside a square (tile, square or editor frame); position and size are set inline. */
+.photo-img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.editor {
+  position: fixed; inset: 0;
+  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+           max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(0, 0, 0, 0.55);
+  overflow-y: auto;
+}
+.editor-card {
+  width: min(100%, 380px);
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 12px;
+}
+.editor h2 { margin: 0; font-size: 18px; }
+.editor p { margin: 0; color: var(--muted); font-size: 14px; }
+.frame {
+  position: relative;
+  width: 100%;
+  width: min(100%, max(180px, calc(100dvh - 340px)));
+  max-width: 100%;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--photo-bg);
+  outline: 1px solid var(--cell);
+  touch-action: none;
+  cursor: grab;
+}
+.frame:active { cursor: grabbing; }
+.zoom { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.zoom input { flex: 1; min-width: 0; accent-color: var(--fg); }
+.editor-links { display: flex; gap: 16px; }
+.editor-actions { display: flex; gap: 8px; }
+.editor-actions button { flex: 1; }
+button.secondary { background: var(--slot); color: var(--fg); }
 
 @media (prefers-reduced-motion: reduce) {
   .tile { transition: none; }
@@ -201,11 +254,28 @@ button.link {
       <button type="button" class="link" id="toggle-photos" aria-expanded="true" aria-controls="photos-body">Hide</button>
     </div>
     <div id="photos-body">
-      <p>Upload photos assigns them in the order you pick them: the first to 2, the next to 4, and so on. Tap a square to change just that one.</p>
+      <p>Upload photos assigns them in the order you pick them: the first to 2, the next to 4, and so on. Tap a square to move, zoom or change that photo.</p>
       <div class="slots" id="slots"></div>
       <button type="button" id="upload">Upload photos</button>
     </div>
   </section>
+
+  <div class="editor" id="editor" role="dialog" aria-modal="true" aria-labelledby="editor-title" hidden>
+    <div class="editor-card">
+      <h2 id="editor-title"></h2>
+      <div class="frame" id="frame"></div>
+      <p>Drag to move. Pinch or use the slider to zoom.</p>
+      <label class="zoom">Zoom <input type="range" id="zoom" min="0" max="1000" step="1"></label>
+      <div class="editor-links">
+        <button type="button" class="link" id="editor-change">Change photo</button>
+        <button type="button" class="link" id="editor-remove">Remove photo</button>
+      </div>
+      <div class="editor-actions">
+        <button type="button" class="secondary" id="editor-cancel">Cancel</button>
+        <button type="button" id="editor-done">Done</button>
+      </div>
+    </div>
+  </div>
 
   <input type="file" id="file-many" class="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
   <input type="file" id="file-one" class="file" accept="image/*" tabindex="-1" aria-hidden="true">
@@ -217,17 +287,63 @@ button.link {
 
   const SIZE = 4;
   const SLOTS = 11; // tiles 2 .. 2048
-  const PHOTO_PX = 360;
+  const PHOTO_PX = 720; // longest side of a saved photo
   const $ = (s) => document.querySelector(s);
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-  /* ---------- Photos ---------- */
-  let photos = load('p2048.photos', []);
-  photos = Array.from({ length: SLOTS }, (_, i) =>
-    Array.isArray(photos) && typeof photos[i] === 'string' && photos[i].startsWith('data:image/') ? photos[i] : null);
+  /* ---------- Photos ----------
+     Each photo is stored with its placement inside a square tile:
+       iw, ih  original pixel size
+       z       zoom, where 1 means the whole photo just fits the tile
+       cx, cy  where the photo's center sits in the tile (0..1)            */
+  const isData = (v) => typeof v === 'string' && v.startsWith('data:image/');
+  const num = (v, d) => (Number.isFinite(+v) ? +v : d);
+  function readPhoto(v) {
+    if (isData(v)) return { src: v, iw: 1, ih: 1, z: 1, cx: 0.5, cy: 0.5, legacy: true }; // older saves
+    if (v && isData(v.src) && v.iw > 0 && v.ih > 0) {
+      return { src: v.src, iw: +v.iw, ih: +v.ih, z: num(v.z, 1), cx: num(v.cx, 0.5), cy: num(v.cy, 0.5) };
+    }
+    return null;
+  }
+  const savedPhotos = load('p2048.photos', []);
+  let photos = Array.from({ length: SLOTS }, (_, i) => readPhoto(Array.isArray(savedPhotos) ? savedPhotos[i] : null));
 
-  // Shrink the whole photo (no cropping) so it stays small enough to save.
+  const maxZoom = (p) => 4 * Math.max(p.iw, p.ih) / Math.min(p.iw, p.ih);
+  function layout(p) {
+    const m = Math.max(p.iw, p.ih);
+    const w = (p.iw / m) * p.z, h = (p.ih / m) * p.z;
+    return { w, h, left: p.cx - w / 2, top: p.cy - h / 2 };
+  }
+  // A photo larger than the tile must keep the tile covered; a smaller one must stay inside it.
+  function clampAxis(c, size) {
+    const half = size / 2;
+    return size >= 1 ? Math.min(half, Math.max(1 - half, c)) : Math.min(1 - half, Math.max(half, c));
+  }
+  function clampPhoto(p) {
+    p.z = Math.min(maxZoom(p), Math.max(1, p.z));
+    const { w, h } = layout(p);
+    p.cx = clampAxis(p.cx, w);
+    p.cy = clampAxis(p.cy, h);
+  }
+  function placeImg(img, p) {
+    const b = layout(p);
+    img.style.width = `${b.w * 100}%`;
+    img.style.height = `${b.h * 100}%`;
+    img.style.left = `${b.left * 100}%`;
+    img.style.top = `${b.top * 100}%`;
+  }
+  function photoImg(p) {
+    const img = new Image();
+    img.className = 'photo-img';
+    img.alt = '';
+    img.draggable = false;
+    img.src = p.src;
+    placeImg(img, p);
+    return img;
+  }
+
+  // Shrink the photo so it stays small enough to save, keeping enough detail to zoom in.
   async function toPhoto(file) {
     const url = URL.createObjectURL(file);
     try {
@@ -239,17 +355,25 @@ button.link {
       canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.82);
+      return { src: canvas.toDataURL('image/jpeg', 0.85), iw: canvas.width, ih: canvas.height, z: 1, cx: 0.5, cy: 0.5 };
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
   function photosChanged() {
-    save('p2048.photos', photos);
+    save('p2048.photos', photos.map((p) => p && { src: p.src, iw: p.iw, ih: p.ih, z: p.z, cx: p.cx, cy: p.cy }));
     renderSlots();
     renderTiles(true);
   }
+
+  // Photos saved by earlier versions have no size recorded; measure them once.
+  photos.forEach((p) => {
+    if (!p || !p.legacy) return;
+    const img = new Image();
+    img.onload = () => { p.iw = img.naturalWidth; p.ih = img.naturalHeight; delete p.legacy; photosChanged(); };
+    img.src = p.src;
+  });
 
   const slotsEl = $('#slots');
   const fileMany = $('#file-many'), fileOne = $('#file-one');
@@ -257,17 +381,18 @@ button.link {
 
   function renderSlots() {
     slotsEl.textContent = '';
-    photos.forEach((src, i) => {
+    photos.forEach((p, i) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'slot' + (src ? ' has-photo' : '');
+      b.className = 'slot' + (p ? ' has-photo' : '');
       b.textContent = 2 ** (i + 1);
-      b.setAttribute('aria-label', `Photo for tile ${2 ** (i + 1)}`);
-      if (src) b.style.backgroundImage = `url("${src}")`;
-      b.addEventListener('click', () => { pickingSlot = i; fileOne.click(); });
+      b.setAttribute('aria-label', p ? `Edit the photo for tile ${2 ** (i + 1)}` : `Choose a photo for tile ${2 ** (i + 1)}`);
+      if (p) b.appendChild(photoImg(p));
+      b.addEventListener('click', () => (p ? openEditor(i, p) : pickOne(i)));
       slotsEl.appendChild(b);
     });
   }
+  function pickOne(i) { pickingSlot = i; fileOne.click(); }
 
   const photosBody = $('#photos-body'), toggleBtn = $('#toggle-photos');
   function setPhotosVisible(show) {
@@ -289,13 +414,101 @@ button.link {
       photosChanged(); // show each photo as soon as it's ready
     }));
   });
+  // A single photo for one square opens straight into the editor.
   fileOne.addEventListener('change', async () => {
     const f = fileOne.files[0];
     fileOne.value = '';
     if (!f || pickingSlot < 0) return;
-    try { photos[pickingSlot] = await toPhoto(f); } catch { return; }
+    let p;
+    try { p = await toPhoto(f); } catch { return; }
+    openEditor(pickingSlot, p);
+  });
+
+  /* ---------- Photo editor ---------- */
+  const editorEl = $('#editor'), frameEl = $('#frame'), zoomEl = $('#zoom');
+  let editSlot = -1, work = null, workImg = null;
+
+  function openEditor(i, p) {
+    editSlot = i;
+    work = { ...p };
+    clampPhoto(work);
+    $('#editor-title').textContent = `Photo for tile ${2 ** (i + 1)}`;
+    $('#editor-remove').hidden = !photos[i];
+    frameEl.textContent = '';
+    workImg = photoImg(work);
+    frameEl.appendChild(workImg);
+    syncZoom();
+    editorEl.hidden = false;
+    $('#editor-done').focus();
+  }
+  function closeEditor() {
+    editorEl.hidden = true;
+    work = workImg = null;
+    editSlot = -1;
+  }
+  function redraw() { placeImg(workImg, work); }
+  function syncZoom() { zoomEl.value = Math.round((Math.log(work.z) / Math.log(maxZoom(work))) * 1000); }
+  // Zoom so the point (ax, ay) in the frame (0..1) stays put.
+  function zoomTo(z, ax, ay) {
+    const nz = Math.min(maxZoom(work), Math.max(1, z));
+    const f = nz / work.z;
+    work.cx = ax + (work.cx - ax) * f;
+    work.cy = ay + (work.cy - ay) * f;
+    work.z = nz;
+    clampPhoto(work);
+    redraw();
+    syncZoom();
+  }
+
+  zoomEl.addEventListener('input', () => {
+    zoomTo(Math.exp((zoomEl.value / 1000) * Math.log(maxZoom(work))), 0.5, 0.5);
+  });
+
+  const pointers = new Map();
+  frameEl.addEventListener('pointerdown', (e) => {
+    try { frameEl.setPointerCapture(e.pointerId); } catch {}
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  frameEl.addEventListener('pointermove', (e) => {
+    if (!work || !pointers.has(e.pointerId)) return;
+    const rect = frameEl.getBoundingClientRect(), size = rect.width;
+    const before = [...pointers.values()].slice(0, 2).map((q) => ({ ...q }));
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const after = [...pointers.values()].slice(0, 2);
+    const mid = (a) => ({ x: (a[0].x + a[a.length - 1].x) / 2, y: (a[0].y + a[a.length - 1].y) / 2 });
+    const m0 = mid(before), m1 = mid(after);
+    work.cx += (m1.x - m0.x) / size;
+    work.cy += (m1.y - m0.y) / size;
+    if (after.length === 2) {
+      const d0 = Math.hypot(before[0].x - before[1].x, before[0].y - before[1].y);
+      const d1 = Math.hypot(after[0].x - after[1].x, after[0].y - after[1].y);
+      if (d0 > 0) { zoomTo(work.z * (d1 / d0), (m1.x - rect.left) / size, (m1.y - rect.top) / size); return; }
+    }
+    clampPhoto(work);
+    redraw();
+  });
+  const release = (e) => pointers.delete(e.pointerId);
+  frameEl.addEventListener('pointerup', release);
+  frameEl.addEventListener('pointercancel', release);
+  frameEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = frameEl.getBoundingClientRect();
+    zoomTo(work.z * Math.exp(-e.deltaY * 0.0015), (e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
+  }, { passive: false });
+
+  $('#editor-done').addEventListener('click', () => {
+    photos[editSlot] = work;
+    closeEditor();
     photosChanged();
   });
+  $('#editor-cancel').addEventListener('click', closeEditor);
+  $('#editor-change').addEventListener('click', () => pickOne(editSlot));
+  $('#editor-remove').addEventListener('click', () => {
+    photos[editSlot] = null;
+    closeEditor();
+    photosChanged();
+  });
+  editorEl.addEventListener('click', (e) => { if (e.target === editorEl) closeEditor(); });
 
   /* ---------- Game ---------- */
   let grid, score, won, nextId = 1;
@@ -385,14 +598,15 @@ button.link {
   function paint(el, t) {
     el.style.setProperty('--r', t.r);
     el.style.setProperty('--c', t.c);
+    if (el._level === t.level) return;
+    el._level = t.level;
     const face = el.firstChild;
     const photo = photos[t.level - 1];
     if (photo) {
       face.style.setProperty('--tile-bg', 'var(--photo-bg)');
-      face.style.backgroundImage = `url("${photo}")`;
       face.textContent = '';
+      face.appendChild(photoImg(photo));
     } else {
-      face.style.backgroundImage = 'none';
       face.style.setProperty('--tile-bg', NUMBER_COLORS[Math.min(t.level, SLOTS) - 1]);
       face.style.setProperty('--tile-fg', t.level <= 2 ? '#776e65' : '#ffffff');
       face.textContent = 2 ** t.level;
@@ -441,6 +655,10 @@ button.link {
   /* ---------- Controls ---------- */
   const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
   document.addEventListener('keydown', (e) => {
+    if (!editorEl.hidden) {
+      if (e.key === 'Escape') closeEditor();
+      return;
+    }
     if (!KEYS[e.key]) return;
     e.preventDefault();
     move(KEYS[e.key]);

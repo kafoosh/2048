@@ -13,8 +13,8 @@ Swipe on the board on a phone, or use the arrow keys on a computer.
 Under the board there's a square for each tile value, from 2 up to 2048.
 
 - **Upload photos** assigns the photos you pick in order: the first to 2, the next to 4, and so on. Squares past the last photo keep what they had.
-- Tap a square to pick the photo for that tile.
+- Tap an empty square to pick a photo for that tile. Tap a square that has a photo to edit it: drag to move it, pinch (or use the slider or mouse wheel) to zoom, then tap **Done**. You can also change or remove the photo there.
 - Tiles without a photo show their number.
 - Tap **Hide** next to the Photos heading to collapse the squares, and **Show** to bring them back. The choice is remembered.
 
-Each photo is scaled to fit inside its tile without cropping. Photos are shrunk and saved in your browser on your device. Nothing is uploaded to a server.
+New photos start scaled to fit inside the tile without cropping. Photos are shrunk and saved in your browser on your device. Nothing is uploaded to a server.
