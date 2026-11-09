@@ -20,6 +20,7 @@
   --board: #bbada0;
   --cell: #cdc1b4;
   --slot: #eee7de;
+  --photo-bg: #ffffff;
   --veil: rgba(250, 248, 245, 0.8);
   --btn: #2b2a28;
   --btn-fg: #ffffff;
@@ -28,13 +29,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #1c1b1a; --fg: #eeeae4; --muted: #a29d96; --board: #4a443e; --cell: #5c554e;
-    --slot: #2c2a28; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
+    --slot: #2c2a28; --photo-bg: #111110; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #1c1b1a; --fg: #eeeae4; --muted: #a29d96; --board: #4a443e; --cell: #5c554e;
-  --slot: #2c2a28; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
+  --slot: #2c2a28; --photo-bg: #111110; --veil: rgba(28, 27, 26, 0.8); --btn: #eeeae4; --btn-fg: #1c1b1a;
   color-scheme: dark;
 }
 
@@ -119,7 +120,7 @@ button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
   width: 100%; height: 100%;
   display: grid; place-items: center;
   border-radius: 6px;
-  background: var(--tile-bg) center / cover no-repeat;
+  background: var(--tile-bg) center / contain no-repeat;
   color: var(--tile-fg);
   font-weight: 800;
   font-size: clamp(16px, 6vw, 30px);
@@ -159,12 +160,12 @@ button.link {
   aspect-ratio: 1;
   padding: 0;
   border-radius: 6px;
-  background: var(--slot) center / cover no-repeat;
+  background: var(--slot) center / contain no-repeat;
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
 }
-.slot.has-photo { color: transparent; }
+.slot.has-photo { color: transparent; background-color: var(--photo-bg); }
 
 @media (prefers-reduced-motion: reduce) {
   .tile { transition: none; }
@@ -200,7 +201,7 @@ button.link {
       <button type="button" class="link" id="toggle-photos" aria-expanded="true" aria-controls="photos-body">Hide</button>
     </div>
     <div id="photos-body">
-      <p>Pick a photo for each tile, from 2 up to 2048. Tap a square to change it.</p>
+      <p>Upload photos assigns them in the order you pick them: the first to 2, the next to 4, and so on. Tap a square to change just that one.</p>
       <div class="slots" id="slots"></div>
       <button type="button" id="upload">Upload photos</button>
     </div>
@@ -226,17 +227,18 @@ button.link {
   photos = Array.from({ length: SLOTS }, (_, i) =>
     Array.isArray(photos) && typeof photos[i] === 'string' && photos[i].startsWith('data:image/') ? photos[i] : null);
 
-  // Center-crop to a square and shrink, so photos stay small enough to save.
+  // Shrink the whole photo (no cropping) so it stays small enough to save.
   async function toPhoto(file) {
     const url = URL.createObjectURL(file);
     try {
       const img = new Image();
       img.src = url;
       await img.decode();
-      const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h);
+      const scale = Math.min(1, PHOTO_PX / Math.max(img.naturalWidth, img.naturalHeight));
       const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = PHOTO_PX;
-      canvas.getContext('2d').drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, PHOTO_PX, PHOTO_PX);
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       return canvas.toDataURL('image/jpeg', 0.82);
     } finally {
       URL.revokeObjectURL(url);
@@ -279,17 +281,13 @@ button.link {
 
   $('#upload').addEventListener('click', () => fileMany.click());
   fileMany.addEventListener('change', async () => {
-    const files = [...fileMany.files];
+    // Assign in the order picked: first photo to 2, second to 4, and so on.
+    const files = [...fileMany.files].slice(0, SLOTS);
     fileMany.value = '';
-    // Fill the empty squares in order. If every square already has a photo,
-    // replace them starting from the 2.
-    const allFull = photos.every(Boolean);
-    for (let n = 0; n < files.length; n++) {
-      const slot = allFull ? n : photos.indexOf(null);
-      if (slot === -1 || slot >= SLOTS) break;
-      try { photos[slot] = await toPhoto(files[n]); } catch {}
-    }
-    photosChanged();
+    await Promise.all(files.map(async (file, i) => {
+      try { photos[i] = await toPhoto(file); } catch { return; }
+      photosChanged(); // show each photo as soon as it's ready
+    }));
   });
   fileOne.addEventListener('change', async () => {
     const f = fileOne.files[0];
@@ -390,6 +388,7 @@ button.link {
     const face = el.firstChild;
     const photo = photos[t.level - 1];
     if (photo) {
+      face.style.setProperty('--tile-bg', 'var(--photo-bg)');
       face.style.backgroundImage = `url("${photo}")`;
       face.textContent = '';
     } else {
