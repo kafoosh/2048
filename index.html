@@ -137,7 +137,16 @@ button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
   font-weight: 800;
 }
 
-.photos h2 { margin: 0 0 4px; font-size: 18px; }
+.photos-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.photos h2 { margin: 0; font-size: 18px; }
+button.link {
+  height: auto;
+  padding: 6px 0;
+  background: none;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .photos p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
 .slots {
   display: grid;
@@ -186,10 +195,15 @@ button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
   </div>
 
   <section class="photos">
-    <h2>Photos</h2>
-    <p>Pick a photo for each tile, from 2 up to 2048. Tap a square to change it.</p>
-    <div class="slots" id="slots"></div>
-    <button type="button" id="upload">Upload photos</button>
+    <div class="photos-head">
+      <h2>Photos</h2>
+      <button type="button" class="link" id="toggle-photos" aria-expanded="true" aria-controls="photos-body">Hide</button>
+    </div>
+    <div id="photos-body">
+      <p>Pick a photo for each tile, from 2 up to 2048. Tap a square to change it.</p>
+      <div class="slots" id="slots"></div>
+      <button type="button" id="upload">Upload photos</button>
+    </div>
   </section>
 
   <input type="file" id="file-many" class="file" accept="image/*" multiple tabindex="-1" aria-hidden="true">
@@ -252,6 +266,16 @@ button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
       slotsEl.appendChild(b);
     });
   }
+
+  const photosBody = $('#photos-body'), toggleBtn = $('#toggle-photos');
+  function setPhotosVisible(show) {
+    photosBody.hidden = !show;
+    toggleBtn.textContent = show ? 'Hide' : 'Show';
+    toggleBtn.setAttribute('aria-expanded', String(show));
+    save('p2048.showPhotos', show);
+  }
+  toggleBtn.addEventListener('click', () => setPhotosVisible(photosBody.hidden));
+  setPhotosVisible(load('p2048.showPhotos', true) !== false);
 
   $('#upload').addEventListener('click', () => fileMany.click());
   fileMany.addEventListener('change', async () => {
