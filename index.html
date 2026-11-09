@@ -65,10 +65,31 @@ main {
   gap: 16px;
 }
 
-header { display: flex; align-items: center; gap: 12px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 h1 { margin: 0 auto 0 0; font-size: 26px; font-weight: 800; white-space: nowrap; }
-.score { font-size: 15px; color: var(--muted); white-space: nowrap; }
-.score b { color: var(--fg); font-variant-numeric: tabular-nums; }
+button.icon {
+  width: 40px;
+  padding: 0;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  background: var(--slot);
+  color: var(--fg);
+}
+button.icon svg { width: 20px; height: 20px; }
+button.icon[aria-pressed="true"] .off,
+button.icon[aria-pressed="false"] .on { display: none; }
+@media (max-width: 400px) {
+  header { gap: 8px; }
+  h1 { font-size: 21px; }
+  #new-game { padding: 0 10px; }
+}
+.score {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 11px; line-height: 1.15; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.score b { font-size: 18px; letter-spacing: 0; color: var(--fg); font-variant-numeric: tabular-nums; }
 button {
   font: inherit;
   font-size: 15px;
@@ -231,6 +252,13 @@ button.secondary { background: var(--slot); color: var(--fg); }
   <header>
     <h1>Photo 2048</h1>
     <span class="score">Score <b id="score">0</b></span>
+    <button type="button" class="icon" id="sound" aria-label="Sound" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>
+        <path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>
+        <path class="off" d="M17 9.5l5 5M22 9.5l-5 5"/>
+      </svg>
+    </button>
     <button type="button" id="new-game">New game</button>
   </header>
 
@@ -545,7 +573,7 @@ button.secondary { background: var(--slot); color: var(--fg); }
     if (!messageEl.hidden) return;
     const next = emptyGrid();
     const merged = [];
-    let moved = false;
+    let moved = false, topMerge = 0;
     for (let i = 0; i < SIZE; i++) {
       const cells = line(dir, i);
       const row = cells.map(([r, c]) => grid[r][c]).filter(Boolean);
@@ -556,6 +584,7 @@ button.secondary { background: var(--slot); color: var(--fg); }
         if (u && u.level === t.level) {
           next[r][c] = { id: t.id, level: t.level + 1, r, c };
           merged.push({ id: u.id, r, c });
+          topMerge = Math.max(topMerge, t.level + 1);
           score += 2 ** (t.level + 1);
           moved = true;
           j++;
@@ -566,6 +595,7 @@ button.secondary { background: var(--slot); color: var(--fg); }
       }
     }
     if (!moved) return;
+    playMoveSound(topMerge);
     grid = next;
     addRandomTile();
     renderTiles(false, merged);
@@ -651,6 +681,64 @@ button.secondary { background: var(--slot); color: var(--fg); }
     else newGame();
   });
   $('#new-game').addEventListener('click', newGame);
+
+  /* ---------- Sound ----------
+     Synthesized with the Web Audio API, so there are no sound files.        */
+  let audio = null;
+  let soundOn = load('p2048.sound', true) !== false;
+  const soundBtn = $('#sound');
+
+  function audioCtx() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audio) audio = new AC();
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  // Browsers (iOS especially) only start audio after a tap, click or key press.
+  for (const type of ['pointerdown', 'touchend', 'keydown']) {
+    document.addEventListener(type, () => { if (soundOn) audioCtx(); }, { passive: true });
+  }
+
+  // One short note that glides from freq to toFreq and fades out.
+  function note(freq, toFreq, delay, length, volume, wave = 'sine') {
+    const t = audio.currentTime + delay;
+    const osc = audio.createOscillator(), gain = audio.createGain();
+    osc.type = wave;
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(toFreq, t + length);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + length + 0.02);
+  }
+
+  // Merges climb a major pentatonic scale, so bigger tiles sound higher and happier.
+  const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31, 33];
+  function playMoveSound(mergedLevel) {
+    if (!soundOn || !audioCtx()) return;
+    if (mergedLevel) {
+      const f = 523.25 * 2 ** (SCALE[Math.min(mergedLevel - 2, SCALE.length - 1)] / 12);
+      note(f * 0.7, f, 0, 0.12, 0.22);              // bubbly upward "bloop"
+      note(f * 2, f * 2.02, 0.05, 0.16, 0.05);      // little sparkle on top
+    } else {
+      note(620, 420, 0, 0.07, 0.07, 'triangle');    // soft "boop" for a slide
+    }
+  }
+
+  function setSound(on) {
+    soundOn = on;
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.setAttribute('aria-label', on ? 'Sound on. Tap to mute.' : 'Sound off. Tap to turn on.');
+    save('p2048.sound', on);
+  }
+  soundBtn.addEventListener('click', () => {
+    setSound(!soundOn);
+    if (soundOn) playMoveSound(2);
+  });
+  setSound(soundOn);
 
   /* ---------- Controls ---------- */
   const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };

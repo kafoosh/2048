@@ -8,6 +8,8 @@ Open `index.html` in a browser, or host the folder anywhere static (for GitHub P
 
 Swipe on the board on a phone, or use the arrow keys on a computer.
 
+Tiles make a soft sound when they slide and a little pop when they combine; the pop gets higher as the tiles get bigger. Use the speaker button next to New game to mute. On iPhone, sound also follows the ring/silent switch.
+
 ## Photos
 
 Under the board there's a square for each tile value, from 2 up to 2048.
